@@ -10,3 +10,6 @@
 - 2026-10-09 · agent call (Claude): Spanish stays the default language, with the ES/EN switch from the original.
 - 2026-10-09 · owner feedback: the UI did not match Spawn's. Agent call (Claude): rebuild `src/hud.tsx` as a port of `scripts/ui.js`; plan approved by the owner. Supersedes the earlier agent call about HUD action hints.
 - 2026-10-09 · owner request: bring the scene up to Spawn's latest version. Agent calls (Claude): doors moved to the deeper front wall; throw stays on key 1; guide arrow as a 3D billboard; top bar left of the tickets during a shift.
+- 2026-10-09 · playtest feedback via the owner: no jump, big button = main action with a state icon, small drop button. Owner calls: the small button drops at your feet (replaces the throw); icons drawn by the agent.
+- 2026-10-09 · owner call: use the authoritative server branch and logic. Agent calls (Claude): client reports inside/outside as a fallback because the local server saw no player positions; no client-side prediction; AUTO_SMOKE removed.
+- 2026-10-09 · playtest feedback round 2 via the owner. Owner call: build multiple rooms now. Agent calls (Claude): 3 rooms of 4 stacked above the lot; camera closer than Spawn's minimum; arrows only until the first delivery of the session; feedback sounds non-positional in the shed.

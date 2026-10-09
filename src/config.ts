@@ -81,17 +81,9 @@ export const DISH_EN: Record<DishId, string> = {
   glove: 'Bladed glove'
 }
 
-// --- throw.yml (Q / LANZAR in Spawn; key 1 here) -----------------------------------------------------------
-export const T = {
-  speed: 2.4, // m/s forward: a soft lob, lands a bench and a half out
-  carry: 1.0, // share of the maker's walking speed the throw keeps
-  lift: 1.5, // m/s upward at release
-  height: 1.05, // m, release height above the maker's feet
-  ahead: 0.7, // m in front of the chest
-  pickReach: 0.9, // m from the spot a metre ahead of the maker
-  hardSpeed: 2.6, // knives, saws, torches
-  gravity: 24 // places/main/config.yaml gravity.y
-}
+// --- dropping (Spawn throws with Q, throw.yml; here key 1 drops at your feet: owner call after a playtest) ---
+export const DROP_AHEAD = 0.55 // m in front of the feet
+export const PICK_REACH = 0.9 // m from the spot a metre ahead of the maker (throw.yml pickReach)
 
 // --- player.yml / customer.js / wander.js --------------------------------------------------------------
 export const WALK_SPEED = 6
@@ -102,18 +94,15 @@ export const WANDER_SPEED = 1.1
 export const SPAWN_IN_SHED = { x: 0, y: 0.2, z: 0.4 } // places/main defaultSpawnPoint
 export const SPAWN_ON_LOT = { x: 0, y: 0.2, z: 10.5 } // places/lobby defaultSpawnPoint (z 9.5), a step back from the deeper shed
 // scripts/lib/doors.js: the shed's two doors on the lot. Green goes in; red was the private shoot (not ported).
-// Spawn's lobby keeps its closed shed at the old depth (doors at z 2.95); here the one shed is the deeper
-// working one (front wall z 4.05 since seq 292), so the doors stand on that wall.
-export const DOORS = [
-  { id: 'door-public', to: 'public', x: -2.6, z: 4.15 },
-  { id: 'door-private', to: 'private', x: 2.6, z: 4.15 }
-]
+// The lot's closed shed has one door (playtest feedback: no public/private; rooms fill in arrival order).
+export const DOOR = { x: 0, z: 4.15 }
 // the shed's inside, as scripts/camera.js tests it
 export const insideShed = (x: number, z: number) => Math.abs(x) < 6.3 && Math.abs(z) < 4.3
 
 // --- assets ---------------------------------------------------------------------------------------------
 export const SND = (n: string) => `assets/Audio/sfx-${n}.mp3`
 export const MUSIC = 'assets/Audio/music-prop-shop-rush-loop.mp3'
+export const MUSIC_VOLUME = 0.3 // was 0.5: it covered the feedback sounds (playtest)
 export const ICON = (n: string) => `assets/Images/${n}-ico.png`
 export const MODEL = (who: string) => `assets/Models/${who}.glb`
 export const TEX = {
@@ -122,5 +111,6 @@ export const TEX = {
   wood: 'assets/Textures/pine-lumber-wood-grain.png',
   siding: 'assets/Textures/painted-aluminum-camper-siding.png',
   burlap: 'assets/Textures/burlap-canvas-weave.png',
-  cotton: 'assets/Textures/wrinkled-cotton-fabric.png'
+  cotton: 'assets/Textures/wrinkled-cotton-fabric.png',
+  rock: 'assets/Textures/terrain-rock-realistic-albedo.png'
 }

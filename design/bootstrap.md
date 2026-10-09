@@ -1,6 +1,6 @@
 # Bootstrap — 2026-10-09 (agent working note)
 
-- Project: `/Users/eibriel/Dev/GameJamHalloween/galpon-de-utileria`, `@dcl/sdk` 7.30.1, Node 24.13. Build: `npm run build`.
+- Project: `/Users/eibriel/Dev/GameJamHalloween/galpon-de-utileria`, `@dcl/sdk` auth-server branch (7.30.2-37807847179.commit-24c42ea; was 7.30.1 until the server switch), Node 24.13. Build: `npm run build`.
 - Skills: `sdk-scenes` and topic skills installed at user level today (`npx skills add decentraland/sdk-skills --all -g`);
   read for this build: sdk-scenes, camera-control, parts of advanced-input, player-avatar, build-ui.
   `spawn-to-dcl` is a project skill in `../.claude/skills/`; `dcl-gdd` / `dcl-prototype` at user level.

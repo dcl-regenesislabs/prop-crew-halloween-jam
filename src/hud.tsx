@@ -9,9 +9,8 @@
 // 1600x720 canvas a phone gets. Coded React-ECS (data-driven, not UI-Designer editable).
 import ReactEcs, { Label, ReactEcsRenderer, UiEntity } from '@dcl/sdk/react-ecs'
 import { Color4 } from '@dcl/sdk/math'
-import { isMobile } from '@dcl/sdk/platform'
 import { DISH_EN, DishId, NAMES_EN, S } from './config'
-import { cards, now, shift, stationItem } from './net'
+import { hands, now, serverAwake, shift, stationItem, waitedFor } from './net'
 import { setSignsLang } from './shed'
 import { BY_ID, canAdd, dippable, dishOf, GIVES, Item, sharpenable, STEPS } from './shop'
 import { UI } from './state'
@@ -97,14 +96,14 @@ function tip(): { k: string; n: string; d: string } | null {
   return null
 }
 
-// scripts/lib/guide.js at seq 292, every line in both languages (keys line adapted: throw is 1 here, Q in Spawn)
+// scripts/lib/guide.js at seq 292, every line in both languages (keys line adapted: Spawn throws with Q, here 1 drops)
 const PHOTO: Record<string, string> = { crate: 'g-crate', bench: 'g-bench', grinder: 'g-grinder', paint: 'g-bucket', gas: 'g-pump', window: 'g-window' }
 const GUIDE = {
   es: {
     title: 'Cómo se trabaja en el galpón',
     close: '¡A trabajar!',
     example: 'Ejemplo: Cuchillo ensangrentado',
-    keys: '¡ACCIÓN! empieza el turno · TIRAR en el tacho descarta · LANZAR revolea lo que tenés · E para todo (mantené E para afilar y cargar) · 1 lanzar',
+    keys: '¡ACCIÓN! empieza el turno · TIRAR en el tacho descarta · SOLTAR deja en el piso lo que tenés · E para todo (mantené E para afilar y cargar) · 1 soltar',
     cards: [
       ['crate', 'Cajones', 'USAR frente a un cajón agarra lo que tiene adentro. Con algo en la mano, le suma la pieza si encaja.'],
       ['bench', 'Banco', 'USAR apoya lo que tenés. Con otra pieza en la mano, UNIR las arma juntas.'],
@@ -119,7 +118,7 @@ const GUIDE = {
     title: 'How the prop shed works',
     close: "Let's work!",
     example: 'Example: Bloody knife',
-    keys: 'ACTION! starts the shift · USE at the trash bins it · THROW tosses what you hold · E for everything (hold E to sharpen and fuel) · 1 throw',
+    keys: 'ACTION! starts the shift · USE at the trash bins it · DROP leaves what you hold on the floor · E for everything (hold E to sharpen and fuel) · 1 drop',
     cards: [
       ['crate', 'Crates', "USE at a crate grabs what's inside. Holding something, it adds the part if it fits."],
       ['bench', 'Bench', 'USE sets down what you hold. Holding another part, it puts them together.'],
@@ -181,46 +180,53 @@ function LangToggle(small = false) {
 }
 
 function Hud() {
-  return <UiEntity uiTransform={{ width: '100%', height: '100%', positionType: 'absolute' }}>{UI.inside ? Shed() : Lot()}</UiEntity>
+  return (
+    <UiEntity uiTransform={{ width: '100%', height: '100%', positionType: 'absolute' }}>
+      {UI.inside ? Shed() : Lot()}
+      {Waking()}
+    </UiEntity>
+  )
+}
+// The server sleeps when the set is empty and needs a moment to wake (about 15 s once published). Until its
+// clock is seen ticking nothing you press would be heard, so say so instead of looking broken.
+function Waking() {
+  if (serverAwake() || waitedFor() < 3) return null
+  const en = EN()
+  return (
+    <UiEntity uiTransform={{ positionType: 'absolute', position: { top: 250, left: 0 }, width: '100%', height: 70, justifyContent: 'center' }}>
+      <UiEntity uiTransform={{ width: 620, height: 70, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: ORANGE, borderRadius: 14 }} uiBackground={{ color: hex('#1a1020', 0.94) }}>
+        <Txt v={en ? 'Waking up the set… one moment' : 'Despertando el set… un momento'} size={26} w={600} h={50} />
+      </UiEntity>
+    </UiEntity>
+  )
 }
 
 // --- the lot (ui.js lobby) -------------------------------------------------------------------------------------
 function Lot() {
   const en = EN()
-  const inside = cards().filter((x) => x.c.inside).length
-  const door = (to: string) => (to === 'private' ? (en ? 'PRIVATE SHOOT' : 'RODAJE PRIVADO') : en ? 'PUBLIC SHOOT' : 'RODAJE PÚBLICO')
-  const touch = isMobile()
+  const inside = hands().filter((x) => x.room >= 0).length
+  const touch = UI.mobile
   return (
     <UiEntity uiTransform={{ width: '100%', height: '100%', positionType: 'absolute' }}>
-      {/* .lbc: what the two doors are */}
-      <UiEntity uiTransform={{ positionType: 'absolute', position: { top: 12, left: 0 }, width: '100%', height: 200, justifyContent: 'center', alignItems: 'flex-start' }}>
-        <UiEntity uiTransform={{ width: 800, margin: { left: 60 }, flexDirection: 'column', alignItems: 'center', padding: { top: 8, bottom: 10 }, borderWidth: 4, borderColor: EDGE, borderRadius: 20 }} uiBackground={{ color: PANEL }}>
-          <Txt v={en ? '<b>THE PROP SHED</b>' : '<b>GALPÓN DE UTILERÍA</b>'} size={32} w={780} h={40} />
-          <Txt v={en ? 'THE LOT · BETWEEN TAKES' : 'EL SET · ENTRE TOMAS'} size={19} w={780} h={26} color={hex('#f6e3c4', 0.75)} />
-          <UiEntity uiTransform={{ width: 770, height: 92, margin: { top: 6 } }}>
-            <UiEntity uiTransform={{ width: 385, height: 92, flexDirection: 'column' }}>
-              <Txt v={'<b>' + door('public') + '</b>'} size={23} w={375} h={30} color={PUB} align="middle-left" />
-              <Txt v={(en ? "work with whoever's in, up to 4. inside now: " : 'trabajás con quien esté, hasta 4. adentro: ') + inside + '/4'} size={19} w={375} h={58} align="top-left" wrap />
-            </UiEntity>
-            <UiEntity uiTransform={{ width: 385, height: 92, flexDirection: 'column' }}>
-              <Txt v={'<b>' + door('private') + '</b>'} size={23} w={375} h={30} color={PRV} align="middle-left" />
-              <Txt v={en ? 'a private shed by link: not available in Decentraland' : 'un galpón privado por link: no disponible en Decentraland'} size={19} w={375} h={58} align="top-left" wrap />
-            </UiEntity>
-          </UiEntity>
-          {touch ? null : <Txt v={en ? 'WASD walk · drag the mouse to look · E at a door' : 'WASD caminar · arrastrá el mouse para mirar · E en una puerta'} size={17} w={780} h={26} color={hex('#f6e3c4', 0.7)} />}
+      {/* .lbc, lighter: one door now, rooms fill in arrival order (playtest feedback) */}
+      <UiEntity uiTransform={{ positionType: 'absolute', position: { top: 12, left: 0 }, width: '100%', height: 130, justifyContent: 'center', alignItems: 'flex-start' }}>
+        <UiEntity uiTransform={{ width: 620, margin: { left: 60 }, flexDirection: 'column', alignItems: 'center', padding: { top: 8, bottom: 10 }, borderWidth: 4, borderColor: EDGE, borderRadius: 20 }} uiBackground={{ color: PANEL }}>
+          <Txt v={en ? '<b>THE PROP SHED</b>' : '<b>GALPÓN DE UTILERÍA</b>'} size={32} w={600} h={40} />
+          <Txt v={(en ? 'THE LOT · BETWEEN TAKES · on set now: ' : 'EL SET · ENTRE TOMAS · en rodaje: ') + inside} size={19} w={600} h={26} color={hex('#f6e3c4', 0.75)} />
+          {touch ? null : <Txt v={en ? 'WASD walk · drag the mouse to look · E at the door' : 'WASD caminar · arrastrá el mouse para mirar · E en la puerta'} size={17} w={600} h={26} color={hex('#f6e3c4', 0.7)} />}
         </UiEntity>
       </UiEntity>
 
-      {/* .enter: only when you stand at a door, in that door's colour */}
+      {/* .enter: only when you stand at the door */}
       {UI.nearDoor && !UI.entering ? (
         <UiEntity uiTransform={{ positionType: 'absolute', position: { bottom: 22, left: 0 }, width: '100%', height: 104, justifyContent: 'center' }}>
           <UiEntity
             uiTransform={{ width: 360, height: 104, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderWidth: 5, borderColor: AMBER, borderRadius: 24 }}
-            uiBackground={{ color: UI.nearDoor === 'private' ? BLOOD : GREEN }}
+            uiBackground={{ color: GREEN }}
             onMouseDown={() => (UI.wantEnter = true)}
           >
             <Txt v={'<b>' + (en ? 'GO IN' : 'ENTRAR') + (touch ? '' : ' [E]') + '</b>'} size={38} w={350} h={52} color={CREAM} />
-            <Txt v={door(UI.nearDoor)} size={20} w={350} h={28} color={CREAM} />
+            <Txt v={en ? 'JOIN THE SHOOT' : 'AL RODAJE'} size={20} w={350} h={28} color={CREAM} />
           </UiEntity>
         </UiEntity>
       ) : null}
@@ -232,7 +238,6 @@ function Lot() {
       {UI.entering ? (
         <UiEntity uiTransform={{ positionType: 'absolute', width: '100%', height: '100%', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }} uiBackground={{ color: hex('#0e1420', 0.94) }}>
           <Txt v={'<b>' + (en ? 'Into the prop shed…' : 'Entrando al galpón…') + '</b>'} size={50} w={1000} h={70} />
-          <Txt v={door('public')} size={26} w={1000} h={40} color={hex('#f6e3c4', 0.7)} />
         </UiEntity>
       ) : null}
     </UiEntity>
@@ -240,22 +245,25 @@ function Lot() {
 }
 
 // --- the shed (ui.js render) -------------------------------------------------------------------------------------
-// .tk: a paper ticket: the dish, its name, how it is made, the customer's patience
+// .tk, reshaped after a playtest: the dish icon on the left; on its right the name, how it is made, and the
+// customer's patience. Small, so two can sit one under the other at the right edge.
 function Ticket(o: { dish: DishId; until: number; max: number }, key: string) {
   const pct = Math.max(0, Math.min(1, (o.until - now()) / o.max))
   const col = pct > 0.5 ? hex('#3f9e5a') : pct > 0.25 ? hex('#d99a2b') : RED
   const steps: any[] = []
   STEPS[o.dish].forEach((k, i) => {
-    if (i) steps.push(<Txt key={'a' + i} v="<b>›</b>" size={24} w={14} h={40} color={INK} />)
-    steps.push(icon(k, 40, 's' + i))
+    if (i) steps.push(<Txt key={'a' + i} v="<b>›</b>" size={20} w={12} h={30} color={INK} />)
+    steps.push(icon(k, 30, 's' + i))
   })
   return (
-    <UiEntity key={key} uiTransform={{ width: 196, height: 212, margin: { left: 6, right: 6 }, padding: 8, flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', borderWidth: 4, borderColor: EDGE, borderRadius: 20 }} uiBackground={{ color: PAPER }}>
-      {icon(o.dish, 78)}
-      <Txt v={'<b>' + (EN() ? DISH_EN[o.dish] : S.dishes[o.dish].name) + '</b>'} size={19} w={176} h={44} color={INK} wrap />
-      <UiEntity uiTransform={{ width: 176, height: 44, justifyContent: 'center', alignItems: 'center' }}>{steps}</UiEntity>
-      <UiEntity uiTransform={{ width: 172, height: 14, borderRadius: 7 }} uiBackground={{ color: hex('#000000', 0.2) }}>
-        <UiEntity uiTransform={{ width: Math.max(2, Math.round(172 * pct)), height: 14, borderRadius: 7 }} uiBackground={{ color: col }} />
+    <UiEntity key={key} uiTransform={{ width: 292, height: 92, margin: { bottom: 8 }, padding: 6, alignItems: 'center', borderWidth: 3, borderColor: EDGE, borderRadius: 14 }} uiBackground={{ color: PAPER }}>
+      {icon(o.dish, 72)}
+      <UiEntity uiTransform={{ width: 196, height: 78, margin: { left: 6 }, flexDirection: 'column', justifyContent: 'space-between' }}>
+        <Txt v={'<b>' + (EN() ? DISH_EN[o.dish] : S.dishes[o.dish].name) + '</b>'} size={16} w={196} h={22} color={INK} align="middle-left" />
+        <UiEntity uiTransform={{ width: 196, height: 34, alignItems: 'center' }}>{steps}</UiEntity>
+        <UiEntity uiTransform={{ width: 192, height: 12, borderRadius: 6 }} uiBackground={{ color: hex('#000000', 0.2) }}>
+          <UiEntity uiTransform={{ width: Math.max(2, Math.round(192 * pct)), height: 12, borderRadius: 6 }} uiBackground={{ color: col }} />
+        </UiEntity>
       </UiEntity>
     </UiEntity>
   )
@@ -275,13 +283,12 @@ function Shed() {
   const h = UI.held
   const heldIcon = h ? (h.k === 'saw' ? 'chainsaw' : h.k === 'torch' ? 'flashlight' : h.k) : ''
   const heldText = itemName(h)
-  const throwText = en ? ' · 1 throw' : ' · 1 lanzar'
+  const throwText = en ? ' · 1 drop' : ' · 1 soltar'
   const wrap = !P.on && P.last && t - P.endsAt < 12000 ? P.last : null
   return (
     <UiEntity uiTransform={{ width: '100%', height: '100%', positionType: 'absolute' }}>
-      {/* .top: REC clock and the take, or the record between takes; the guide, the way out, the room, the language.
-          Centred between takes; during a shift it sits left of the tickets so two of them never cover it */}
-      <UiEntity uiTransform={{ positionType: 'absolute', position: { top: 12, left: P.on ? 100 : 0 }, width: P.on ? 780 : '100%', height: 60, justifyContent: P.on ? 'flex-start' : 'center', alignItems: 'center' }}>
+      {/* .top: REC clock and the take (or the record between takes), the guide, the music, the way out */}
+      <UiEntity uiTransform={{ positionType: 'absolute', position: { top: 12, left: 0 }, width: '100%', height: 60, justifyContent: 'center', alignItems: 'center' }}>
         {P.on ? (
           <UiEntity uiTransform={{ width: 196, height: 46, margin: { left: 5, right: 5 }, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: EDGE, borderRadius: 14 }} uiBackground={{ color: PANEL }}>
             <Txt v="● REC" size={26} w={100} h={40} color={REC} />
@@ -290,14 +297,15 @@ function Shed() {
         ) : null}
         {P.on ? <Pill v={'$ ' + P.score} /> : P.best ? <Pill v={(en ? 'best' : 'récord') + ' $' + P.best} /> : null}
         <Btn v="<b>?</b>" w={56} h={56} size={34} bg={AMBER} radius={28} onPress={() => (UI.guide = true)} />
-        <Btn v={en ? 'LOT' : 'SET'} w={84} h={56} size={22} bg={AMBER} radius={28} onPress={() => (UI.wantExit = true)} />
-        <Pill v={en ? 'public' : 'público'} size={19} color={hex('#f6e3c4', 0.8)} />
-        {/* .lg: ES/EN always in the shed's top bar (seq 292) */}
-        {LangToggle(true)}
+        {/* the music on or off (playtest feedback); the language lives on the lot and in the guide only */}
+        <UiEntity uiTransform={{ width: 56, height: 56, margin: { left: 4, right: 4 }, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: EDGE, borderRadius: 28 }} uiBackground={{ color: AMBER }} onMouseDown={() => (UI.music = !UI.music)}>
+          {img(UI.music ? 'btn-music.png' : 'btn-music-off.png', 40)}
+        </UiEntity>
+        <Btn v={en ? 'EXIT' : 'SALIR'} w={104} h={56} size={22} bg={AMBER} radius={28} onPress={() => (UI.wantExit = true)} />
       </UiEntity>
 
-      {/* .tix: the tickets, most urgent first from the right edge */}
-      <UiEntity uiTransform={{ positionType: 'absolute', position: { top: 12, right: 104 }, height: 220, flexDirection: 'row-reverse', alignItems: 'flex-start' }}>
+      {/* .tix: the tickets, most urgent on top, stacked at the right edge */}
+      <UiEntity uiTransform={{ positionType: 'absolute', position: { top: 12, right: 104 }, width: 300, height: 210, flexDirection: 'column', alignItems: 'flex-end' }}>
         {orders.map((o, i) => Ticket(o, 't' + i))}
       </UiEntity>
 

@@ -212,3 +212,22 @@ export function lcylX(x0: number, cy: number, cz: number, r: number, len: number
 export function lball(cx: number, cy: number, cz: number, rx: number, ry: number, rz: number, m: Mat, o: Opt = {}) {
   return blob([cx, cy, -cz], rx, ry, rz, m, o)
 }
+
+// --- room space -------------------------------------------------------------------------------------------------
+// The working shed is not on the lot: each room is a copy stacked above it (shared/rooms.ts), and a client only
+// builds the one it is in. Everything of that room hangs from one root entity, placed at the room's height;
+// children use room-local coordinates (rl), which are Spawn coordinates with Z flipped.
+let roomRootEntity: Entity | null = null
+export let roomY = 0
+export function roomRoot(): Entity {
+  if (roomRootEntity === null) {
+    roomRootEntity = engine.addEntity()
+    Transform.create(roomRootEntity, { position: sp(0, -300, 0) }) // out of sight until a room is entered
+  }
+  return roomRootEntity
+}
+export function setRoomHeight(y: number) {
+  roomY = y
+  Transform.getMutable(roomRoot()).position = sp(0, y, 0)
+}
+export const rl = (x: number, y: number, z: number) => Vector3.create(x, y, -z)

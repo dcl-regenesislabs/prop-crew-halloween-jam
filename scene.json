@@ -72,5 +72,6 @@
   "landscapeTerrain": false,
   "worldConfiguration": {
     "name": "mobile2.dcl.eth"
-  }
+  },
+  "authoritativeMultiplayer": true
 }

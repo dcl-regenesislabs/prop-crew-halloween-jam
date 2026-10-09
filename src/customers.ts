@@ -5,7 +5,7 @@
 import { Animator, Billboard, BillboardMode, engine, Entity, Material, MeshRenderer, TextAlignMode, TextShape, Transform } from '@dcl/sdk/ecs'
 import { Color4, Vector3 } from '@dcl/sdk/math'
 import { CUSTOMER_SPEED, ICON } from './config'
-import { sp, yaw } from './gfx'
+import { rl, roomRoot, yaw } from './gfx'
 import { character, MODEL_YAW_FIX } from './lot'
 import { now, shift } from './net'
 import { setVisible } from './props'
@@ -23,7 +23,7 @@ function setAnim(b: Body, a: string) {
 }
 
 function spawn(id: string, who: any, dish: string): Body {
-  const e = character(who, ENTRY.x, ENTRY.z, 180)
+  const e = character(who, ENTRY.x, ENTRY.z, 180, roomRoot())
   // the order bubble over the head
   const bub = engine.addEntity()
   Transform.create(bub, { parent: e, position: Vector3.create(0, 2.25, 0), scale: Vector3.create(0.55, 0.55, 0.55) })
@@ -90,7 +90,7 @@ export function updateCustomers(dt: number) {
       const k = Math.min(1, (CUSTOMER_SPEED * dt) / d)
       b.x += dx * k
       b.z += dz * k
-      t.position = sp(b.x, 0, b.z)
+      t.position = rl(b.x, 0, b.z)
       t.rotation = yaw((Math.atan2(-dx, -dz) * 180) / Math.PI + MODEL_YAW_FIX)
       setAnim(b, 'Walk')
       continue
@@ -109,7 +109,7 @@ export function updateCustomers(dt: number) {
 const pops: { e: Entity; t: number; y: number; x: number; z: number }[] = []
 export function popNumber(text: string, x: number, z: number, color: Color4, size = 1.4, y = 2.6) {
   const e = engine.addEntity()
-  Transform.create(e, { position: sp(x, y, z), scale: Vector3.create(size, size, size) })
+  Transform.create(e, { parent: roomRoot(), position: rl(x, y, z), scale: Vector3.create(size, size, size) })
   Billboard.create(e, { billboardMode: BillboardMode.BM_ALL })
   TextShape.create(e, { text, fontSize: 5, textColor: color, outlineColor: { r: 0.1, g: 0.06, b: 0.12 }, outlineWidth: 0.2, textAlign: TextAlignMode.TAM_MIDDLE_CENTER })
   pops.push({ e, t: 0, y, x, z })
@@ -118,7 +118,7 @@ export function updatePops(dt: number) {
   for (let i = pops.length - 1; i >= 0; i--) {
     const p = pops[i]
     p.t += dt
-    Transform.getMutable(p.e).position = sp(p.x, p.y + p.t * 0.8, p.z)
+    Transform.getMutable(p.e).position = rl(p.x, p.y + p.t * 0.8, p.z)
     if (p.t > 1.4) {
       engine.removeEntity(p.e)
       pops.splice(i, 1)

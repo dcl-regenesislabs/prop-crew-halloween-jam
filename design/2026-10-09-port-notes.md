@@ -155,6 +155,88 @@ Differences and loose ends:
 - Crate dust and flash particles are not ported (as before).
 - Not seen: the "+Name" pop in a screenshot; English in the shed; the bob of a working machine as motion.
 
+## Phone controls after playtest feedback (2026-10-09, by Claude)
+
+Feedback from a playtester, passed on by the owner: no jump, the big button is the main action, a small button to
+drop items, and the main button's picture follows what you face (hold at the grinder and pump, a hand elsewhere).
+
+- `src/touch.ts`: the big central button is E (the main action); jump, pointer, F and 2/3/4 are hidden; the small
+  "1" button is **drop** and shows only while you hold something; the crosshair is hidden in the shed. The big
+  button wears a hold icon when the faced grinder or pump can work the held prop, a hand otherwise. The guide still
+  hides every control while open.
+- **Drop replaces throw** (owner call): key 1 leaves the prop on the floor just in front of your feet; the main
+  action picks it up. The lob and its landing rules are removed. This differs from Spawn, which still throws.
+- Icons `btn-hand.png`, `btn-hold.png`, `btn-drop.png` are drawn here (self-made).
+
+Seen in the Godot Explorer's phone emulation (`touch-*.jpg`): lot with one big hand button and no jump; in the
+shed the hold icon at the grinder with a knife, the small drop button while holding, the knife dropped at the
+feet and picked up again. Not checked on a real phone: the button order follows the documented stack, which the
+SDK skill itself marks as not confirmed against the shipping client.
+
+## Authoritative server (2026-10-09, by Claude, at the owner's request)
+
+The scene now runs on the Multiplayer Server (`@dcl/sdk@auth-server`, `authoritativeMultiplayer: true`). The
+peer-to-peer design (one client elected as referee, everyone writing shared state) is gone.
+
+- `src/server/server.ts`: the only writer of shared state. It runs the referee (`referee.ts`, unchanged), every
+  station rule (take, add, set down, combine, dip, serve), the hold-to-sharpen / hold-to-fuel progress, the floor
+  and each maker's hands, and it empties everything when a shift ends. Clients cannot write these components
+  (`validateBeforeChange`, server only).
+- `src/shared/`: the synced components (`Shift`, `StationState`, `Floor`, `Hand`) and the messages. A client only
+  says what it tries: `use`, `work`, `pick`, `drop`, `start`, `where`. The server answers through the components
+  and with `snd`, `pop`, `crate`, `hint`.
+- `src/net.ts`, `src/game.ts`: the client reads state and sends intentions; it keeps targeting, prompts, HUD,
+  camera, visuals and the phone buttons. `MessageBus` and the host election are removed.
+- The server's clock, rewritten every second, is the shared clock and its heartbeat. If a client stops seeing it
+  tick, the HUD says "Despertando el set…" (a published server takes about 15 s to wake when the set was empty).
+- The headless self-play switch (`AUTO_SMOKE`) is removed; it drove client-side rules that no longer exist.
+
+Seen in the local preview (local server + Godot Explorer, one client, `server-*.jpg`): server boots, the maker
+joins, ¡ACCIÓN! starts a shift on the server, crate grab, hold at the grinder, dip, drop and pick-up, and a glove
+built and handed over with the score going up. Build clean; logic test passes.
+
+Known limits and things found:
+- **The server did not see player positions** in the local preview with the Godot client (no `Transform` on the
+  player entity). So "inside the shed" falls back to what the client reports (`where`), and the distance check on
+  station use only applies when a position is available. Whether the published server sees positions is unknown.
+- Every action now waits for the server's answer before the hands change; on a slow connection that will be
+  felt. No client-side prediction.
+- A player who just left can linger in the server's list for a while (seen locally: a previous session's
+  address "joined" a fresh server), which can inflate "adentro n/4".
+- Local preview: editing a file makes the local server exit ("already served by another local server") and a
+  killed preview leaves a stale lock in `~/Library/Application Support/org.decentraland.BevyExplorer/scene-locks/`;
+  restart `npm run start`, removing that lock if the server refuses to start.
+- Still not tested with two clients, nor against the published server.
+
+## Playtest feedback, round 2: rooms, camera, HUD, sound (2026-10-09, by Claude)
+
+- **Rooms.** The server runs 3 independent sheds of 4 makers (`src/shared/rooms.ts`), stacked above the lot at
+  y 20 / 38 / 56. The green door asks for a place; the server gives the fullest room with space (Spawn's routing
+  rule), or says "rodaje completo". SALIR, leaving or disconnecting frees it. An empty room's shift is reset.
+  Each client builds one interior only, on first entry, and moves it to its room's height.
+- **Lot.** A closed shed (high textured walls, roof, one green door, name board). No interior on the lot. No
+  public/private anywhere.
+- **Camera.** Closer: floor distance 10.6 m instead of Spawn's 13.5 m minimum (owner feedback beats the port here).
+- **HUD.** Tickets are icon + (name / steps / patience), stacked at the right. Top bar: clock, score, ?, music
+  on/off, SALIR / EXIT. Language toggle only on the lot and in the guide. Lot card reduced to title and "en rodaje: n".
+- **Guide arrows** only until the first delivery you see, then never again in the session; for side-wall crates
+  they sit toward the middle of the shed so the wall cannot hide them.
+- **Sound.** Inside the shed every feedback sound is non-positional (they were placed at the bench, ~10 m from the
+  overhead camera, and faded; the buzz was at the player and did not). Music 0.5 → 0.3. The delivery chime is
+  re-synthesised as two notes (it was a weak single beep; still a stand-in, Spawn never generated one).
+- **Looks.** Tin walls and the floor are textured; the blood footprints lead from the bucket's current spot.
+
+Seen in the local preview (one client, `r2-*.jpg`): closed shed and lighter card on the lot; E at the door →
+server log "enters room 0", avatar at y 20, interior there; the closer framing; stacked tickets; music and SALIR
+buttons; the arrow in front of the right wall; no arrows after the first delivery ($27); SALIR → back on the lot
+and "leaves room 0" in the server log. Room filling order is covered by the logic test (`pickRoom`).
+
+Not verified: anything with two or more clients (rooms filling with real players, makers of different rooms not
+seeing each other), audio, the music button's effect, the published server.
+
+Local preview note: after stopping `npm run start`, wait about 15 s before starting it again, or the new local
+server finds the old one's lock and exits.
+
 ## Not verified
 
 - Audio (I cannot hear it).

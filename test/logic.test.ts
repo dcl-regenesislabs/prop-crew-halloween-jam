@@ -2,6 +2,7 @@
 // shifts run through the referee. Run: npx esbuild test/logic.test.ts --bundle --platform=node --outfile=test/out.js && node test/out.js
 import { DishId, S } from '../src/config'
 import { newShift, patienceMs, tick } from '../src/referee'
+import { pickRoom, ROOM_CAP, ROOM_Y, ROOMS } from '../src/shared/rooms'
 import { addPart, BY_ID, canAdd, dippable, dishOf, GIVES, Item, nextStep, sharpenable, STATIONS, stationUnder, WINDOWS } from '../src/shop'
 
 let fails = 0
@@ -72,6 +73,27 @@ for (const d of Object.keys(S.dishes) as DishId[]) {
   ok(dishOf(h) === d && nextStep(orders, h, names)?.id === 'win-2', d + ': guide ends at the window with the finished prop, got ' + dishOf(h))
 }
 ok(nextStep({}, null, (k) => k) === null, 'no orders, no guide')
+
+// 1c. rooms fill like Spawn's routing: the fullest room with space, the next one when that is full, nobody when all are
+ok(pickRoom([0, 0, 0]) === 0, 'the first maker opens room 0')
+ok(pickRoom([1, 0, 0]) === 0 && pickRoom([3, 0, 0]) === 0, 'later makers join the room that is filling')
+ok(pickRoom([4, 0, 0]) === 1, 'a full room sends the next maker to a new one')
+ok(pickRoom([4, 2, 3]) === 2 && pickRoom([2, 4, 2]) === 0, 'the fullest room with space wins, lowest number on a tie')
+ok(pickRoom([4, 4, 4]) === -1, 'all rooms full: no place')
+{
+  // twelve arrivals fill three rooms of four in order; one leaving frees a place in its room
+  const counts = [0, 0, 0]
+  const order: number[] = []
+  for (let i = 0; i < 13; i++) {
+    const k = pickRoom(counts)
+    order.push(k)
+    if (k >= 0) counts[k]++
+  }
+  ok(order.join('') === '000011112222-1', 'arrival order fills rooms 0, 1, 2 then refuses: ' + order.join(','))
+  counts[1]--
+  ok(pickRoom(counts) === 1, 'a place freed in room 1 is the next one given')
+}
+ok(ROOMS === ROOM_Y.length && ROOM_CAP === 4, 'one height per room, four makers each')
 
 // 2. patience = seconds + margin + walkIn
 ok(patienceMs('knife') === 34000 && patienceMs('walkie') === 39000 && patienceMs('glove') === 39000, 'patience 34 s / 39 s')

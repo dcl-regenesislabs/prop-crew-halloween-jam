@@ -16,7 +16,10 @@ export const UI = {
   guide: null as boolean | null, // null: never opened or closed yet, so it opens by itself on the first visit
   guideSeen: false,
   lang: 'es' as 'es' | 'en',
-  nearDoor: null as null | 'public' | 'private',
+  nearDoor: false, // standing at the lot's green door
+  music: true, // the HUD's music button
+  guided: false, // the first-order arrows have done their job: never again this session
+  mobile: false, // set once the platform is known (index.ts)
   entering: false, // walking in through the green door: the HUD draws the curtain
   // HUD buttons set these; game.ts consumes them on the next frame
   wantStart: false,

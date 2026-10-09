@@ -6,12 +6,13 @@
 import { engine, Entity, MainCamera, Transform, UiCanvasInformation, VirtualCamera } from '@dcl/sdk/ecs'
 import { Quaternion } from '@dcl/sdk/math'
 import { insideShed, ORIGIN } from './config'
-import { sp } from './gfx'
+import { roomY, sp } from './gfx'
 import { UI } from './state'
 
 const PITCH = -0.98
 const RATE = 6
 const HALF_W = 6.7
+const CLOSE = 10.6
 let cam: Entity
 let active = false
 let px: number | null = null
@@ -47,19 +48,21 @@ function update(dt: number) {
   const tall = aspect < 1
   const wantFov = tall ? 62 : 45
   const hfov = 2 * Math.atan(Math.tan((wantFov * Math.PI) / 360) * aspect)
-  const dist = Math.max(aspect < 1.4 ? 15 : 13.5, HALF_W / Math.tan(hfov / 2))
+  // Spawn keeps at least 13.5 m (15 on narrow screens). Playtest feedback was "no se ve nada": on a phone the
+  // shed filled only half the height, so the floor distance comes in to CLOSE and only the width fit can push it out.
+  const dist = Math.max(CLOSE, (HALF_W / Math.tan(hfov / 2)) * 1.03)
   if (wantFov !== fov) {
     fov = wantFov
     VirtualCamera.getMutable(cam).fov = fov
   }
   const inside = insideShed(fx, fz)
   const gx = inside ? 0 : fx
-  const gz = inside ? -0.3 : fz
+  const gz = inside ? -0.5 : fz
   const k = 1 - Math.exp(-RATE * dt)
   px = px === null ? gx : px + (gx - px) * k
   pz = pz === null ? gz : pz + (gz - pz) * k
-  const from = sp(px, 0.8 - Math.sin(PITCH) * dist, pz + Math.cos(PITCH) * dist)
+  const from = sp(px, roomY + 0.8 - Math.sin(PITCH) * dist, pz + Math.cos(PITCH) * dist)
   const tr = Transform.getMutable(cam)
   tr.position = from
-  tr.rotation = Quaternion.fromLookAt(from, sp(px, 0.8, pz))
+  tr.rotation = Quaternion.fromLookAt(from, sp(px, roomY + 0.8, pz))
 }

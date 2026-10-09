@@ -18,8 +18,8 @@ import {
 } from '@dcl/sdk/ecs'
 import { Color4, Quaternion, Vector3 } from '@dcl/sdk/math'
 import { loop, stopLoop } from './audio'
-import { DOORS, SND, TEX } from './config'
-import { anchor, c3, c4, lball, lbox, lcyl, lcylX, Mat, sp, yaw } from './gfx'
+import { DOOR, SND, TEX } from './config'
+import { anchor, c3, c4, lball, lbox, lcyl, lcylX, Mat, rl, roomRoot, yaw } from './gfx'
 import { stationItem, stationProg } from './net'
 import { PropSlot, setVisible, slotAt } from './props'
 import { GIVES, Item, Station, STATIONS } from './shop'
@@ -50,36 +50,59 @@ export function setSignsLang(lang: 'es' | 'en') {
   for (const s of signs) TextShape.getMutable(s.e).text = lang === 'en' ? s.en : s.es
 }
 
-// The doors and the name board stand in the front wall, between the overhead camera and the front row of
-// stations. Seen in the Godot Explorer they covered the grinder and the benches, so they drop out of sight
-// while the maker is inside (Spawn never shows both: its doors belong to the lobby's closed shed).
-let front: Entity
-let frontShown = true
-export function showFront(on: boolean) {
-  if (on === frontShown) return
-  frontShown = on
-  Transform.getMutable(front).position = on ? sp(0, 0, 0) : sp(0, -40, 0)
+// --- the lot's shed: closed --------------------------------------------------------------------------------------
+// What stands on the lot is only a shell: high tin walls, a roof, one green door and the name board (Spawn's
+// lobby shed, scripts/gen/shed-closed.js, simplified). Playtest feedback: the inside must not be visible from the
+// lobby, nor built there. The working shed lives in a room above (buildInterior, on first entry).
+export function buildClosedShed() {
+  const root = anchor(0, 0, 0)
+  const oc = { parent: root, collide: true }
+  const o = { parent: root }
+  const tin: Mat = { color: 'oklch(0.42 0.03 240)', tex: TEX.siding, tile: [6, 2], rough: 0.55, metal: 0.35 }
+  const HC = 4.2
+  lbox(X0 - 0.05, 0, Z0, X0, HC, Z1, tin, oc)
+  lbox(X1, 0, Z0, X1 + 0.05, HC, Z1, tin, oc)
+  lbox(X0, 0, Z0 - 0.05, X1, HC, Z0, tin, oc)
+  lbox(X0, 0, Z1, X1, HC, Z1 + 0.05, tin, oc)
+  lbox(X0 - 0.3, HC, Z0 - 0.3, X1 + 0.3, HC + 0.12, Z1 + 0.3, { color: 'oklch(0.3 0.03 240)', rough: 0.6, metal: 0.3 }, o) // roof
+  // the door (door-public)
+  const a = anchor(DOOR.x, 0, DOOR.z, 180, { parent: root })
+  const od = { parent: a }
+  lbox(-0.6, 0, -0.06, 0.6, 2.2, 0.0, { color: 'oklch(0.36 0.09 150)', rough: 0.8 }, od)
+  lbox(-0.72, 0, -0.08, -0.6, 2.35, 0.02, { color: DARK }, od)
+  lbox(0.6, 0, -0.08, 0.72, 2.35, 0.02, { color: DARK }, od)
+  lbox(-0.72, 2.2, -0.08, 0.72, 2.35, 0.02, { color: DARK }, od)
+  lball(0, 3.5, -0.35, 0.08, 0.08, 0.08, { color: 'oklch(0.95 0.1 75)', emissive: 'oklch(0.85 0.11 70)', glow: 4 }, od)
+  // the glowing disc on the ground in front
+  lcyl(0, 0.03, -1.3, 1.1, 0.02, { color: 'oklch(0.9 0.08 150 / 0.35)', emissive: '#2f8a4a', glow: 1.2 }, od)
+  // shed-name over the door
+  lbox(-1.6, 2.5, Z1 + 0.05, 1.6, 3.14, Z1 + 0.09, { color: 'oklch(0.25 0.03 50)' }, o)
+  label('GALPÓN DE UTILERÍA', 0, 2.82, Z1 + 0.12, 180, 2.4, '#e8d9b0', root, 'THE PROP SHED')
 }
 
 // --- the shell ------------------------------------------------------------------------------------------
-export function buildShed() {
-  const root = anchor(0, 0, 0)
+// The working shed, hung from the room root (gfx.ts): built once, on the first entry, and moved to whichever
+// room the server gives you.
+export function buildInterior() {
+  const root = anchor(0, 0, 0, 0, { parent: roomRoot() })
   const o = { parent: root }
   const oc = { parent: root, collide: true }
-  front = anchor(0, 0, 0)
-  const of = { parent: front }
+  // the room's ground: hides the lot below and gives the customers their strip behind the back wall
+  lbox(-30, -0.4, -22, 30, -0.07, 24, { color: 'oklch(0.36 0.04 140)', tex: TEX.grass, tile: [12, 10], rough: 1 }, oc)
+  lbox(-9, -0.07, -7.5, 9, -0.055, 6, { color: 'oklch(0.6 0.015 240)', tex: TEX.gravel, tile: [6, 5], rough: 1 }, o)
   // floor: concrete
-  lbox(X0, -0.06, Z0, X1, 0.02, Z1, { color: 'oklch(0.54 0.01 70)', rough: 0.95 }, o)
+  lbox(X0, -0.06, Z0, X1, 0.02, Z1, { color: 'oklch(0.82 0.01 70)', tex: TEX.rock, tile: [5, 3], rough: 0.95 }, o)
   for (let i = 1; i < 5; i++) lbox(X0 + i * 2.5 - 0.01, 0.02, Z0, X0 + i * 2.5 + 0.01, 0.022, Z1, { color: 'oklch(0.4 0.01 70)' }, o) // seams
-  for (let i = 0; i < 9; i++) lbox(0.33 + i * 0.5, 0.022, 0.86 - i * 0.12 + (i % 2) * 0.2, 0.47 + i * 0.5, 0.026, 0.94 - i * 0.12 + (i % 2) * 0.2, { color: 'oklch(0.38 0.16 25)' }, o) // fake-blood footprints
+  // fake-blood footprints, walking away from the bucket in the front row (it moved there at seq 292)
+  for (let i = 0; i < 9; i++) lbox(1.52 - i * 0.14 + (i % 2) * 0.2, 0.022, 2.66 - i * 0.34, 1.6 - i * 0.14 + (i % 2) * 0.2, 0.026, 2.8 - i * 0.34, { color: 'oklch(0.38 0.16 25)' }, o)
   // walls: corrugated tin, sides full height
-  const tin: Mat = { color: 'oklch(0.42 0.03 240)', rough: 0.55, metal: 0.35 }
+  const tin: Mat = { color: 'oklch(0.42 0.03 240)', tex: TEX.siding, tile: [4, 1.5], rough: 0.55, metal: 0.35 }
   lbox(X0 - 0.05, 0, Z0, X0, H, Z1, tin, oc)
   lbox(X1, 0, Z0, X1 + 0.05, H, Z1, tin, oc)
   // back: knee wall under the two service windows, tin either side of them; the customers stand outside it
   lbox(-1.25, 0, Z0 - 0.1, 1.25, 0.84, Z0 + 0.02, { color: 'oklch(0.35 0.05 50)', rough: 0.85 }, oc)
   for (const x of [-1.32, -0.07, 1.18]) lbox(x, 0, Z0 - 0.12, x + 0.14, 1.1, Z0 + 0.05, { color: 'oklch(0.32 0.04 50)' }, o)
-  const tin2: Mat = { color: 'oklch(0.45 0.03 240)', rough: 0.55, metal: 0.35 }
+  const tin2: Mat = { color: 'oklch(0.45 0.03 240)', tex: TEX.siding, tile: [2.5, 1], rough: 0.55, metal: 0.35 }
   lbox(X0, 0, Z0 - 0.05, -1.3, 1.7, Z0, tin2, oc)
   lbox(1.3, 0, Z0 - 0.05, X1, 1.7, Z0, tin2, oc)
   // front: knee wall, posts
@@ -94,29 +117,9 @@ export function buildShed() {
   // Spawn lights nine lamps in here (lamp-1..9); Decentraland renders a handful, so the three big ones stay
   for (const [x, z, shadow] of [[-3, -0.6, 0], [3, -0.6, 0], [0, 0.9, 1]]) {
     const l = engine.addEntity()
-    Transform.create(l, { position: sp(x, 1.95, z) })
+    Transform.create(l, { parent: roomRoot(), position: rl(x, 1.95, z) })
     LightSource.create(l, { type: LightSource.Type.Point({}), color: c3('oklch(0.9 0.08 80)'), intensity: 30000, range: 12, shadow: !!shadow, active: true })
   }
-  // the lot side: the two doors of the lobby's closed shed (door-public, door-private) standing in the front wall
-  for (const d of DOORS) {
-    const green = d.to === 'public'
-    const a = anchor(d.x, 0, d.z, 180, { parent: front })
-    const od = { parent: a }
-    lbox(-0.55, 0, -0.06, 0.55, 2.1, 0.0, { color: green ? 'oklch(0.36 0.09 150)' : 'oklch(0.36 0.12 25)', rough: 0.8 }, od)
-    lbox(-0.65, 0, -0.08, -0.55, 2.25, 0.02, { color: DARK }, od)
-    lbox(0.55, 0, -0.08, 0.65, 2.25, 0.02, { color: DARK }, od)
-    lbox(-0.65, 2.1, -0.08, 0.65, 2.25, 0.02, { color: DARK }, od)
-    lbox(-0.75, 2.34, -0.1, 0.75, 2.66, -0.07, { color: 'oklch(0.18 0.02 50)' }, od) // the sign board
-    lball(0, 2.8, -0.3, 0.07, 0.07, 0.07, { color: 'oklch(0.95 0.1 75)', emissive: 'oklch(0.85 0.11 70)', glow: 4 }, od)
-    // the glowing disc on the ground in front
-    lcyl(0, 0.03, -1.2, 1, 0.02, { color: green ? 'oklch(0.9 0.08 150 / 0.35)' : 'oklch(0.9 0.06 25 / 0.35)', emissive: green ? '#2f8a4a' : '#b3121b', glow: 1.2 }, od)
-    label(green ? 'RODAJE PÚBLICO' : 'RODAJE PRIVADO', d.x, 2.5, d.z + 0.13, 180, 1.6, green ? '#9be3a8' : '#ffb0a6', front, green ? 'PUBLIC SHOOT' : 'PRIVATE SHOOT')
-  }
-  // shed-name over the front
-  lbox(-1.45, 2.11, Z1 + 0.1, 1.45, 2.65, Z1 + 0.13, { color: 'oklch(0.25 0.03 50)' }, of)
-  lbox(-1.3, 0, Z1 + 0.09, -1.2, 2.15, Z1 + 0.14, { color: DARK }, of)
-  lbox(1.2, 0, Z1 + 0.09, 1.3, 2.15, Z1 + 0.14, { color: DARK }, of)
-  label('GALPÓN DE UTILERÍA', 0, 2.38, Z1 + 0.16, 180, 2.2, '#e8d9b0', front, 'THE PROP SHED')
   // scripts/gen/locked-door.js: the side door past x 4.8 is boarded and padlocked
   lbox(4.94, 0.84, Z1 - 0.02, X1 - 0.14, 2.0, Z1 + 0.04, { color: WOOD2, tex: TEX.wood }, oc)
   for (const y of [1.05, 1.5]) lbox(4.85, y, Z1 + 0.04, X1 - 0.05, y + 0.14, Z1 + 0.07, { color: WOOD }, o)
@@ -211,7 +214,7 @@ let marker: Entity
 
 export function buildStations() {
   for (const st of STATIONS) {
-    const a = anchor(st.x, 0, st.z, st.yaw)
+    const a = anchor(st.x, 0, st.z, st.yaw, { parent: roomRoot() })
     // the collider Spawn gives every station: 1.18 x 0.9 x 0.8
     const col = lbox(-0.59, 0, -0.4, 0.59, 0.9, 0.4, null, { parent: a })
     MeshCollider.setBox(col, ColliderLayer.CL_PHYSICS)
@@ -237,7 +240,7 @@ export function buildStations() {
     let fill: Entity | null = null
     if (st.kind === 'grinder' || st.kind === 'pump') {
       const bar = engine.addEntity()
-      Transform.create(bar, { position: sp(st.x, 2.0, st.z) })
+      Transform.create(bar, { parent: roomRoot(), position: rl(st.x, 2.0, st.z) })
       Billboard.create(bar, { billboardMode: BillboardMode.BM_ALL })
       bg = engine.addEntity()
       Transform.create(bg, { parent: bar, scale: Vector3.create(0.84, 0.14, 0.01) })
@@ -254,12 +257,12 @@ export function buildStations() {
   }
   // what the maker faces right now: a small lit bar over the station (maker.js state.look)
   marker = engine.addEntity()
-  Transform.create(marker, { position: Vector3.create(0, -5, 0), scale: Vector3.create(0.9, 0.04, 0.06) })
+  Transform.create(marker, { parent: roomRoot(), position: Vector3.create(0, -5, 0), scale: Vector3.create(0.9, 0.04, 0.06) })
   MeshRenderer.setBox(marker)
   Material.setBasicMaterial(marker, { diffuseColor: Color4.create(1, 0.85, 0.45, 1) })
   // the first-order guide: an amber label and a bouncing arrow over the station needed next (ui.js arrow)
   guide = engine.addEntity()
-  Transform.create(guide, { position: Vector3.create(0, -5, 0), scale: Vector3.create(1.4, 1.4, 1.4) })
+  Transform.create(guide, { parent: roomRoot(), position: Vector3.create(0, -5, 0), scale: Vector3.create(1.4, 1.4, 1.4) })
   Billboard.create(guide, { billboardMode: BillboardMode.BM_ALL })
   guideBoard = engine.addEntity()
   Transform.create(guideBoard, { parent: guide, position: Vector3.create(0, 0.62, 0.01), scale: Vector3.create(1, 0.3, 0.01) })
@@ -273,14 +276,17 @@ export function buildStations() {
   MeshRenderer.setCylinder(tip, 0, 0.5) // a cone, point down
   Material.setBasicMaterial(tip, { diffuseColor: Color4.create(0.965, 0.757, 0.467, 1) })
   engine.addSystem(syncStations)
+  ready = true
 }
 
+let ready = false // the interior exists (it is built on the first entry)
 let guide: Entity
 let guideBoard: Entity
 let guideText: Entity
 let guideAt: Station | null = null
 let guideSays = ''
 export function setGuide(id: string | null, text: string) {
+  if (!ready) return
   const st = id ? STATIONS.find((s) => s.id === id) ?? null : null
   if (st !== guideAt && !st) Transform.getMutable(guide).position = Vector3.create(0, -5, 0)
   guideAt = st
@@ -300,7 +306,8 @@ export function crateBounce(id: string) {
 // and plays its own motor loop
 function syncStations() {
   const t = Date.now()
-  if (guideAt) Transform.getMutable(guide).position = sp(guideAt.x, 1.5 + Math.abs(Math.sin(t / 220)) * 0.25, guideAt.z)
+  // over the station; for the crates on the side walls it sits a step toward the middle, so the wall never hides it
+  if (guideAt) Transform.getMutable(guide).position = rl(guideAt.x - Math.sign(guideAt.x) * (Math.abs(guideAt.x) > 5 ? 1.3 : 0), 1.5 + Math.abs(Math.sin(t / 220)) * 0.25, guideAt.z)
   for (const b of built) {
     if (b.hitAt) {
       const k = (t - b.hitAt) / 180
@@ -312,7 +319,7 @@ function syncStations() {
       const on = stationProg(b.st.id) > 0
       if (on !== b.running) {
         b.running = on
-        if (on) loop('motor-' + b.st.id, SND(b.st.kind === 'grinder' ? 'bench-grinder-motor-loop' : 'gas-pump-fuel-flow-loop'), { at: { x: b.st.x, y: 1, z: b.st.z }, volume: 1 })
+        if (on) loop('motor-' + b.st.id, SND(b.st.kind === 'grinder' ? 'bench-grinder-motor-loop' : 'gas-pump-fuel-flow-loop'), { volume: 0.8, global: true })
         else {
           stopLoop('motor-' + b.st.id)
           Transform.getMutable(b.root).scale = Vector3.One()
@@ -339,6 +346,7 @@ function syncStations() {
   }
 }
 export function setMarker(st: Station | null) {
+  if (!ready) return
   const t = Transform.getMutable(marker)
   if (!st) {
     if (t.position.y > -1) t.position = Vector3.create(0, -5, 0)
@@ -347,6 +355,6 @@ export function setMarker(st: Station | null) {
   // on the station's edge that faces the shed's middle
   const front = st.yaw === 180 ? { x: 0, z: 0.43 } : st.yaw === 0 ? { x: 0, z: -0.43 } : st.yaw === 90 ? { x: -0.43, z: 0 } : { x: 0.43, z: 0 }
   const side = st.yaw === 90 || st.yaw === -90
-  t.position = sp(st.x + front.x, 0.93, st.z + front.z)
+  t.position = rl(st.x + front.x, 0.93, st.z + front.z)
   t.rotation = yaw(side ? 90 : 0)
 }

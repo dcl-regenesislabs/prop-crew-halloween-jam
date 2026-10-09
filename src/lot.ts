@@ -184,9 +184,9 @@ function wander(dt: number) {
   }
 }
 
-export function character(who: WhoId, x: number, z: number, rot: number) {
+export function character(who: WhoId, x: number, z: number, rot: number, parent?: Entity) {
   const e = engine.addEntity()
-  Transform.create(e, { position: sp(x, 0, z), rotation: yaw(rot + MODEL_YAW_FIX) })
+  Transform.create(e, { parent, position: parent ? Vector3.create(x, 0, -z) : sp(x, 0, z), rotation: yaw(rot + MODEL_YAW_FIX) })
   GltfContainer.create(e, { src: MODEL(who) })
   Animator.create(e, {
     states: [
