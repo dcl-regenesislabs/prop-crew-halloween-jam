@@ -69,5 +69,8 @@
   "skyboxConfig": {
     "fixedTime": 0
   },
-  "landscapeTerrain": false
+  "landscapeTerrain": false,
+  "worldConfiguration": {
+    "name": "mobile2.dcl.eth"
+  }
 }
