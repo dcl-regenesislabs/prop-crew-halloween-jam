@@ -1,0 +1,73 @@
+{
+  "ecs7": true,
+  "runtimeVersion": "7",
+  "display": {
+    "title": "Galpón de Utilería",
+    "description": "Taller de utilería de una película de terror: los monstruos hacen fila y vos armás sus props antes de que se cansen de esperar.",
+    "navmapThumbnail": "images/scene-thumbnail.png",
+    "favicon": "favicon_asset"
+  },
+  "owner": "",
+  "contact": {
+    "name": "SDK",
+    "email": ""
+  },
+  "main": "bin/index.js",
+  "tags": [
+    "game",
+    "horror"
+  ],
+  "scene": {
+    "parcels": [
+      "0,0",
+      "0,1",
+      "0,2",
+      "0,3",
+      "1,0",
+      "1,1",
+      "1,2",
+      "1,3",
+      "2,0",
+      "2,1",
+      "2,2",
+      "2,3"
+    ],
+    "base": "0,0"
+  },
+  "spawnPoints": [
+    {
+      "name": "lote",
+      "default": true,
+      "position": {
+        "x": [
+          27,
+          29
+        ],
+        "y": [
+          0.2,
+          0.2
+        ],
+        "z": [
+          21.5,
+          23
+        ]
+      },
+      "cameraTarget": {
+        "x": 28,
+        "y": 1.5,
+        "z": 32
+      }
+    }
+  ],
+  "featureToggles": {
+    "voiceChat": "enabled",
+    "portableExperiences": "disabled"
+  },
+  "requiredPermissions": [
+    "ALLOW_TO_MOVE_PLAYER_INSIDE_SCENE"
+  ],
+  "skyboxConfig": {
+    "fixedTime": 0
+  },
+  "landscapeTerrain": false
+}
