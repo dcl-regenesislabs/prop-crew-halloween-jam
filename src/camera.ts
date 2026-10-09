@@ -9,10 +9,11 @@ import { insideShed, ORIGIN } from './config'
 import { roomY, sp } from './gfx'
 import { UI } from './state'
 
-const PITCH = -0.98
+// Spawn looks down at 56 degrees (pitch -0.98). Playtest: "no verlo tan desde arriba y acercarla": 42 degrees.
+const PITCH = -0.74
 const RATE = 6
 const HALF_W = 6.7
-const CLOSE = 10.6
+const CLOSE = 9.8
 let cam: Entity
 let active = false
 let px: number | null = null
@@ -57,7 +58,7 @@ function update(dt: number) {
   }
   const inside = insideShed(fx, fz)
   const gx = inside ? 0 : fx
-  const gz = inside ? -0.5 : fz
+  const gz = inside ? 1.2 : fz // aimed a little in front of the middle, so the front row clears the bottom HUD
   const k = 1 - Math.exp(-RATE * dt)
   px = px === null ? gx : px + (gx - px) * k
   pz = pz === null ? gz : pz + (gz - pz) * k

@@ -237,6 +237,44 @@ seeing each other), audio, the music button's effect, the published server.
 Local preview note: after stopping `npm run start`, wait about 15 s before starting it again, or the new local
 server finds the old one's lock and exits.
 
+## Playtest feedback, round 3: benches, joining, camera, nametags (2026-10-09, by Claude)
+
+Reports: props dropped at a lit bench fell to the floor; base and part would not join in some orders; no joining
+with things on the floor; camera too top-down and far; remove nametags.
+
+Reproduced first: the **main button** at a bench did set down and join correctly. So the reports are explained
+by the **drop** button, which always used the floor: bases ended up on the floor, where nothing could be joined.
+That is my reading of the reports, not something the tester confirmed.
+
+- **Drop means "leave it here"** (owner call): on the bench you face, joined with what is there if it fits, in
+  the trash if you face it, otherwise on the floor.
+- **Floor joining:** the main button on a floor prop takes it with empty hands, or joins it with what you hold
+  (base + part in either order); otherwise the "no encajan" hint. Prompt: "E unir".
+- One rule, `join(a, b)` in `src/shop.ts`, behind bench, floor and drop; tested in every order for all recipes.
+- **Camera:** 42° instead of 56°, distance 9.8, aimed a little in front of the middle so the front row clears
+  the bottom HUD; ¡ACCIÓN! button made smaller for the same reason.
+- **Nametags** hidden in the rooms (`AvatarModifierArea`, `AMT_HIDE_NAMETAGS`); they stay on the lot.
+- Owner question answered: the environment's shapes are **not** Spawn's (only the six characters are); owner
+  chose to keep the simplified shapes rather than bake Spawn's generated geometry.
+
+Seen in the local preview (one client, `r3-*.jpg`): walkie dropped facing a bench lands on it; antenna dropped
+onto it joins; taking it back; drop in the open goes to the floor; with batteries in hand the floor prop offers
+"E unir" and joins; drop at the trash bins it; the new framing during a shift; no nametag over my own avatar.
+Not seen: another player's nametag hidden (single client); a phone.
+
+Local preview note, corrected: after stopping `npm run start`, wait about a minute before starting again; the
+local server (`bevy-headless-server`) refuses to start sooner ("already served by another local server").
+
+## HUD placement: InteractableArea and ScreenInsetArea (2026-10-09, owner request, built by Claude)
+
+- The guide, the tickets and the language switch sit in the client's `InteractableArea`; the small centred pieces
+  (lot card, enter button, top bar, prompt and held pill, ¡ACCIÓN!, ¡CORTEN! card, "Preparando el set…") sit in the
+  `ScreenInsetArea`, because they looked off-centre in the other (owner's observation). Dimmers cover the full screen.
+- Measured in the Godot client's phone layout: interactable area about 1050 x 640 of a 1600 x 720 canvas (left 438,
+  right 110, top 32, bottom 46). The guide did not fit, so the whole HUD draws at 80% (virtual screen 2000 x 900).
+- Seen in the local preview (`r3-170`, `r3-171`, `r3-173`): lot, guide, idle shed, a shift with a ticket and a held
+  prop. Not seen: a real phone, where the areas may measure differently.
+
 ## Not verified
 
 - Audio (I cannot hear it).

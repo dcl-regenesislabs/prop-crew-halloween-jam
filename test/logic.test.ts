@@ -3,7 +3,7 @@
 import { DishId, S } from '../src/config'
 import { newShift, patienceMs, tick } from '../src/referee'
 import { pickRoom, ROOM_CAP, ROOM_Y, ROOMS } from '../src/shared/rooms'
-import { addPart, BY_ID, canAdd, dippable, dishOf, GIVES, Item, nextStep, sharpenable, STATIONS, stationUnder, WINDOWS } from '../src/shop'
+import { addPart, BY_ID, canAdd, dippable, dishOf, GIVES, Item, join, nextStep, sharpenable, STATIONS, stationUnder, WINDOWS } from '../src/shop'
 
 let fails = 0
 const ok = (cond: boolean, what: string) => {
@@ -73,6 +73,21 @@ for (const d of Object.keys(S.dishes) as DishId[]) {
   ok(dishOf(h) === d && nextStep(orders, h, names)?.id === 'win-2', d + ': guide ends at the window with the finished prop, got ' + dishOf(h))
 }
 ok(nextStep({}, null, (k) => k) === null, 'no orders, no guide')
+
+// 1d. joining works in either order, for every base and each of its parts, and refuses what does not fit
+for (const d of Object.keys(S.dishes) as DishId[]) {
+  const R = S.dishes[d]
+  for (const p of R.parts) {
+    const ab = join({ k: R.base }, { k: p })
+    const ba = join({ k: p }, { k: R.base })
+    ok(!!ab && ab.k === R.base && (ab.p ?? []).includes(p), d + ': base then ' + p + ' joins')
+    ok(!!ba && ba.k === R.base && (ba.p ?? []).includes(p), d + ': ' + p + ' then base joins (the order the testers tried)')
+    ok(join(ab, { k: p }) === null, d + ': ' + p + ' does not go on twice')
+  }
+}
+ok(join({ k: 'knife' }, { k: 'machete' }) === null && join({ k: 'bulb' }, { k: 'battery' }) === null, 'two bases, or two parts, do not join')
+ok(join(null, { k: 'knife' }) === null, 'nothing joins with empty hands')
+ok(join({ k: 'blades', s: 1 }, { k: 'glove' })?.s === 1, 'sharpened blades carry their edge onto the glove, glove first or not')
 
 // 1c. rooms fill like Spawn's routing: the fullest room with space, the next one when that is full, nobody when all are
 ok(pickRoom([0, 0, 0]) === 0, 'the first maker opens room 0')

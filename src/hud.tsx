@@ -7,7 +7,7 @@
 // What cannot be the same in scene UI: the typeface (Spawn: Geist Pixel Square), emoji (dropped or replaced by
 // a word or an icon) and, on some clients, rounded corners. Sizes are Spawn's phone-landscape CSS scaled to the
 // 1600x720 canvas a phone gets. Coded React-ECS (data-driven, not UI-Designer editable).
-import ReactEcs, { Label, ReactEcsRenderer, UiEntity } from '@dcl/sdk/react-ecs'
+import ReactEcs, { InteractableArea, Label, ReactEcsRenderer, ScreenInsetArea, UiEntity } from '@dcl/sdk/react-ecs'
 import { Color4 } from '@dcl/sdk/math'
 import { DISH_EN, DishId, NAMES_EN, S } from './config'
 import { hands, now, serverAwake, shift, stationItem, waitedFor } from './net'
@@ -52,6 +52,8 @@ function itemName(it: Item | null) {
   return adds.length ? nameOf(it.k) + ' + ' + adds.join(' + ') : nameOf(it.k)
 }
 function prompt(): string {
+  // a prop on the floor ahead: take it, or join it with what you hold
+  if (UI.floorVerb) return EN() ? (UI.floorVerb === 'UNIR' ? 'E join' : 'E take') : UI.floorVerb === 'UNIR' ? 'E unir' : 'E tomar'
   const st = UI.look ? BY_ID[UI.look] : null
   if (!st) return ''
   const h = UI.held
@@ -134,7 +136,11 @@ const EXAMPLE = ['knifebare', 'grinder', 'paint', 'knife']
 
 // --- pieces -----------------------------------------------------------------------------------------------
 export function setupHud() {
-  ReactEcsRenderer.setUiRenderer(Hud, { virtualWidth: 1600, virtualHeight: 720 })
+  // Where things sit (owner request): inside the client's InteractableArea (clear of its own controls), except the
+  // small centred pieces, which looked off-centre there and sit in the ScreenInsetArea (device safe area) instead.
+  // On a landscape phone the interactable area is about 1050 x 640 of a 1600 x 720 screen (measured in the Godot
+  // client) and the guide is 1300 wide: the virtual screen is 2000 x 900 so everything draws at 80% and fits.
+  ReactEcsRenderer.setUiRenderer(Hud, { virtualWidth: 2000, virtualHeight: 900, screenInset: 'none' })
 }
 const wide = (text: string, size: number) => Math.ceil(text.length * size * 0.52)
 
@@ -179,11 +185,21 @@ function LangToggle(small = false) {
   )
 }
 
+// The HUD is drawn in layers, back to front: 'full' (dimmers over the whole screen), 'centre' (small centred pieces,
+// device safe area), 'area' (edge pieces, interactable area), then the guide's dimmer and the guide itself.
+type ZoneId = 'full' | 'centre' | 'area' | 'guide-dim' | 'guide'
+const Zone = (z: ZoneId) => (UI.inside ? Shed(z) : Lot(z))
 function Hud() {
   return (
     <UiEntity uiTransform={{ width: '100%', height: '100%', positionType: 'absolute' }}>
-      {UI.inside ? Shed() : Lot()}
-      {Waking()}
+      {Zone('full')}
+      <ScreenInsetArea>
+        {Zone('centre')}
+        {Waking()}
+      </ScreenInsetArea>
+      <InteractableArea>{Zone('area')}</InteractableArea>
+      {Zone('guide-dim')}
+      <InteractableArea>{Zone('guide')}</InteractableArea>
     </UiEntity>
   )
 }
@@ -202,23 +218,23 @@ function Waking() {
 }
 
 // --- the lot (ui.js lobby) -------------------------------------------------------------------------------------
-function Lot() {
+function Lot(z: ZoneId) {
   const en = EN()
   const inside = hands().filter((x) => x.room >= 0).length
   const touch = UI.mobile
   return (
     <UiEntity uiTransform={{ width: '100%', height: '100%', positionType: 'absolute' }}>
       {/* .lbc, lighter: one door now, rooms fill in arrival order (playtest feedback) */}
-      <UiEntity uiTransform={{ positionType: 'absolute', position: { top: 12, left: 0 }, width: '100%', height: 130, justifyContent: 'center', alignItems: 'flex-start' }}>
-        <UiEntity uiTransform={{ width: 620, margin: { left: 60 }, flexDirection: 'column', alignItems: 'center', padding: { top: 8, bottom: 10 }, borderWidth: 4, borderColor: EDGE, borderRadius: 20 }} uiBackground={{ color: PANEL }}>
-          <Txt v={en ? '<b>THE PROP SHED</b>' : '<b>GALPÓN DE UTILERÍA</b>'} size={32} w={600} h={40} />
-          <Txt v={(en ? 'THE LOT · BETWEEN TAKES · on set now: ' : 'EL SET · ENTRE TOMAS · en rodaje: ') + inside} size={19} w={600} h={26} color={hex('#f6e3c4', 0.75)} />
+      <UiEntity uiTransform={{ display: z === 'centre' ? 'flex' : 'none', positionType: 'absolute', position: { top: 12, left: 0 }, width: '100%', height: 130, justifyContent: 'center', alignItems: 'flex-start' }}>
+        <UiEntity uiTransform={{ width: 620, flexDirection: 'column', alignItems: 'center', padding: { top: 8, bottom: 10 }, borderWidth: 4, borderColor: EDGE, borderRadius: 20 }} uiBackground={{ color: PANEL }}>
+          <Txt v={en ? '<b>THE SET</b>' : '<b>SET DE GRABACIÓN</b>'} size={32} w={600} h={40} />
+          <Txt v={(en ? 'BETWEEN TAKES · on props now: ' : 'ENTRE TOMAS · en utilería ahora: ') + inside} size={19} w={600} h={26} color={hex('#f6e3c4', 0.75)} />
           {touch ? null : <Txt v={en ? 'WASD walk · drag the mouse to look · E at the door' : 'WASD caminar · arrastrá el mouse para mirar · E en la puerta'} size={17} w={600} h={26} color={hex('#f6e3c4', 0.7)} />}
         </UiEntity>
       </UiEntity>
 
       {/* .enter: only when you stand at the door */}
-      {UI.nearDoor && !UI.entering ? (
+      {z === 'centre' && UI.nearDoor && !UI.entering ? (
         <UiEntity uiTransform={{ positionType: 'absolute', position: { bottom: 22, left: 0 }, width: '100%', height: 104, justifyContent: 'center' }}>
           <UiEntity
             uiTransform={{ width: 360, height: 104, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderWidth: 5, borderColor: AMBER, borderRadius: 24 }}
@@ -226,17 +242,18 @@ function Lot() {
             onMouseDown={() => (UI.wantEnter = true)}
           >
             <Txt v={'<b>' + (en ? 'GO IN' : 'ENTRAR') + (touch ? '' : ' [E]') + '</b>'} size={38} w={350} h={52} color={CREAM} />
-            <Txt v={en ? 'JOIN THE SHOOT' : 'AL RODAJE'} size={20} w={350} h={28} color={CREAM} />
+            <Txt v={en ? 'TO PROPS' : 'A UTILERÍA'} size={20} w={350} h={28} color={CREAM} />
           </UiEntity>
         </UiEntity>
       ) : null}
 
       {/* .lbl2: the language, top-right */}
-      <UiEntity uiTransform={{ positionType: 'absolute', position: { top: 12, right: 110 }, height: 64 }}>{LangToggle()}</UiEntity>
+      {z === 'area' ? <UiEntity uiTransform={{ positionType: 'absolute', position: { top: 12, right: 0 }, height: 64 }}>{LangToggle()}</UiEntity> : null}
 
       {/* .going: the walk-in curtain */}
-      {UI.entering ? (
-        <UiEntity uiTransform={{ positionType: 'absolute', width: '100%', height: '100%', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }} uiBackground={{ color: hex('#0e1420', 0.94) }}>
+      {UI.entering && z === 'full' ? <UiEntity uiTransform={{ positionType: 'absolute', width: '100%', height: '100%' }} uiBackground={{ color: hex('#0e1420', 0.94) }} /> : null}
+      {UI.entering && z === 'centre' ? (
+        <UiEntity uiTransform={{ positionType: 'absolute', width: '100%', height: '100%', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
           <Txt v={'<b>' + (en ? 'Into the prop shed…' : 'Entrando al galpón…') + '</b>'} size={50} w={1000} h={70} />
         </UiEntity>
       ) : null}
@@ -269,7 +286,7 @@ function Ticket(o: { dish: DishId; until: number; max: number }, key: string) {
   )
 }
 
-function Shed() {
+function Shed(z: ZoneId) {
   const P = shift()
   const en = EN()
   const t = now()
@@ -288,7 +305,7 @@ function Shed() {
   return (
     <UiEntity uiTransform={{ width: '100%', height: '100%', positionType: 'absolute' }}>
       {/* .top: REC clock and the take (or the record between takes), the guide, the music, the way out */}
-      <UiEntity uiTransform={{ positionType: 'absolute', position: { top: 12, left: 0 }, width: '100%', height: 60, justifyContent: 'center', alignItems: 'center' }}>
+      <UiEntity uiTransform={{ display: z === 'centre' ? 'flex' : 'none', positionType: 'absolute', position: { top: 12, left: 0 }, width: '100%', height: 60, justifyContent: 'center', alignItems: 'center' }}>
         {P.on ? (
           <UiEntity uiTransform={{ width: 196, height: 46, margin: { left: 5, right: 5 }, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: EDGE, borderRadius: 14 }} uiBackground={{ color: PANEL }}>
             <Txt v="● REC" size={26} w={100} h={40} color={REC} />
@@ -305,12 +322,12 @@ function Shed() {
       </UiEntity>
 
       {/* .tix: the tickets, most urgent on top, stacked at the right edge */}
-      <UiEntity uiTransform={{ positionType: 'absolute', position: { top: 12, right: 104 }, width: 300, height: 210, flexDirection: 'column', alignItems: 'flex-end' }}>
+      <UiEntity uiTransform={{ display: z === 'area' ? 'flex' : 'none', positionType: 'absolute', position: { top: 12, right: 0 }, width: 300, height: 210, flexDirection: 'column', alignItems: 'flex-end' }}>
         {orders.map((o, i) => Ticket(o, 't' + i))}
       </UiEntity>
 
       {/* .hand: the hint, what the key does now (or what the station wants), what is in your hands */}
-      <UiEntity uiTransform={{ positionType: 'absolute', position: { bottom: P.on || guideOpen ? 18 : 128, left: 0 }, width: '100%', height: 190, flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center' }}>
+      <UiEntity uiTransform={{ display: z === 'centre' ? 'flex' : 'none', positionType: 'absolute', position: { bottom: P.on || guideOpen ? 14 : 100, left: 0 }, width: '100%', height: 190, flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center' }}>
         {hint ? <Txt v={hint} size={24} w={900} h={34} color={SALMON} /> : null}
         {p ? (
           <UiEntity uiTransform={{ width: wide(p, 26) + 36, height: 46, margin: 3, justifyContent: 'center', alignItems: 'center', borderRadius: 12 }} uiBackground={{ color: AMBER }}>
@@ -336,8 +353,9 @@ function Shed() {
       </UiEntity>
 
       {/* .wrap: ¡CORTEN! for a few seconds after the whistle */}
-      {wrap && !guideOpen ? (
-        <UiEntity uiTransform={{ positionType: 'absolute', width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }} uiBackground={{ color: hex('#000000', 0.5) }}>
+      {wrap && !guideOpen && z === 'full' ? <UiEntity uiTransform={{ positionType: 'absolute', width: '100%', height: '100%' }} uiBackground={{ color: hex('#000000', 0.5) }} /> : null}
+      {wrap && !guideOpen && z === 'centre' ? (
+        <UiEntity uiTransform={{ positionType: 'absolute', width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
           <UiEntity uiTransform={{ width: 760, height: 290, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: ORANGE, borderRadius: 20 }} uiBackground={{ color: hex('#1a1020', 0.94) }}>
             <Txt v={'<b>' + (en ? 'CUT!' : '¡CORTEN!') + '</b>'} size={54} w={740} h={70} />
             <Txt v={'★ '.repeat(wrap.stars) + '☆ '.repeat(3 - wrap.stars)} size={56} w={740} h={74} color={AMBER} />
@@ -348,13 +366,14 @@ function Shed() {
       ) : null}
 
       {/* .action: between takes, drawn over the ¡CORTEN! card's dimmer like Spawn's z-index */}
-      {!P.on && !guideOpen ? (
-        <UiEntity uiTransform={{ positionType: 'absolute', position: { bottom: 18, left: 0 }, width: '100%', height: 100, justifyContent: 'center' }}>
-          <Btn v={'<b>' + (en ? 'ACTION!' : '¡ACCIÓN!') + '</b>'} w={360} h={100} size={46} bg={RED} fg={CREAM} edge={AMBER} edgeW={5} radius={26} onPress={() => (UI.wantStart = true)} />
+      {!P.on && !guideOpen && z === 'centre' ? (
+        <UiEntity uiTransform={{ positionType: 'absolute', position: { bottom: 14, left: 0 }, width: '100%', height: 78, justifyContent: 'center' }}>
+          <Btn v={'<b>' + (en ? 'ACTION!' : '¡ACCIÓN!') + '</b>'} w={300} h={78} size={38} bg={RED} fg={CREAM} edge={AMBER} edgeW={5} radius={22} onPress={() => (UI.wantStart = true)} />
         </UiEntity>
       ) : null}
 
-      {guideOpen ? Guide() : null}
+      {guideOpen && z === 'guide-dim' ? <UiEntity uiTransform={{ positionType: 'absolute', width: '100%', height: '100%' }} uiBackground={{ color: hex('#000000', 0.7) }} /> : null}
+      {guideOpen && z === 'guide' ? Guide() : null}
     </UiEntity>
   )
 }
@@ -373,11 +392,11 @@ function Guide() {
     )
   })
   return (
-    <UiEntity uiTransform={{ positionType: 'absolute', width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }} uiBackground={{ color: hex('#000000', 0.7) }}>
-      <UiEntity uiTransform={{ width: 1300, height: 690, flexDirection: 'column', borderWidth: 4, borderColor: ORANGE, borderRadius: 22 }} uiBackground={{ color: hex('#1a1020', 0.96) }}>
+    <UiEntity uiTransform={{ positionType: 'absolute', width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
+                <UiEntity uiTransform={{ width: 1300, height: 690, flexDirection: 'column', borderWidth: 4, borderColor: ORANGE, borderRadius: 22 }} uiBackground={{ color: hex('#1a1020', 0.96) }}>
         {/* .gh */}
-        <UiEntity uiTransform={{ width: 1292, height: 76, alignItems: 'center', padding: { left: 110, right: 14 } }}>
-          <Txt v={'<b>' + G.title + '</b>'} size={30} w={968} h={60} align="middle-left" />
+        <UiEntity uiTransform={{ width: 1292, height: 76, alignItems: 'center', padding: { left: 26, right: 14 } }}>
+          <Txt v={'<b>' + G.title + '</b>'} size={30} w={1052} h={60} align="middle-left" />
           {LangToggle()}
         </UiEntity>
         <UiEntity uiTransform={{ width: 1292, height: 3 }} uiBackground={{ color: EDGE }} />
@@ -402,8 +421,7 @@ function Guide() {
         </UiEntity>
         <UiEntity uiTransform={{ width: 1292, height: 3 }} uiBackground={{ color: EDGE }} />
         {/* .gf */}
-        <UiEntity uiTransform={{ width: 1292, height: 86, alignItems: 'center', padding: { left: 100, right: 14 } }}>
-          <Txt v={G.keys} size={17} w={908} h={70} color={hex('#f6e3c4', 0.8)} align="middle-left" wrap />
+        <UiEntity uiTransform={{ width: 1292, height: 86, alignItems: 'center', justifyContent: 'flex-end', padding: { left: 26, right: 14 } }}>
           <Btn
             v={'<b>' + G.close + '</b>'}
             w={250}

@@ -7,6 +7,7 @@ export const UI = {
   held: null as Item | null,
   look: null as string | null, // the station the maker faces
   verb: null as string | null, // the one word the USE key does right now
+  floorVerb: null as string | null, // set when the main action is about a prop on the floor ahead
   canWork: false,
   workVerb: 'AFILAR',
   canThrow: false,

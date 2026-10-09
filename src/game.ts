@@ -10,13 +10,13 @@ import { movePlayerTo } from '~system/RestrictedActions'
 import { loop, play, playFlat, stopLoop } from './audio'
 import { DOOR, DROP_AHEAD, insideShed, MUSIC, MUSIC_VOLUME, NAMES_EN, ORIGIN, PICK_REACH, S, SND, SPAWN_IN_SHED, SPAWN_ON_LOT } from './config'
 import { popNumber, updateCustomers, updatePops } from './customers'
-import { rl, roomRoot, roomY, setRoomHeight, sp, yaw } from './gfx'
+import { rl, roomRoot, roomY, setRoomHeight, sp, yaw, hideRoom } from './gfx'
 import { floor, hands, Loose, myHeld, myRoom, sendDrop, sendEnter, sendLeave, sendPick, sendStart, sendUse, sendWork, shift, stationItem } from './net'
 import { PropSlot, slotAt } from './props'
 import { room } from './shared/messages'
 import { ROOM_Y } from './shared/rooms'
 import { buildInterior, buildStations, crateBounce, setGuide, setMarker } from './shed'
-import { canAdd, dippable, GIVES, Item, nextStep, sharpenable, Station, STATIONS } from './shop'
+import { canAdd, dippable, GIVES, Item, join, nextStep, sharpenable, Station, STATIONS } from './shop'
 import { hint, UI } from './state'
 import { applyTouch } from './touch'
 
@@ -185,6 +185,7 @@ function followRoom(p: Pose, dt: number): boolean {
   }
   // on the lot; if I am still up in a room (I just left, or the server took my place), come down
   if (p.y > 8) moveTo(SPAWN_ON_LOT.x, SPAWN_ON_LOT.y, SPAWN_ON_LOT.z, 0, dt)
+  else hideRoom()
   return false
 }
 
@@ -279,11 +280,14 @@ function frame(dt: number) {
 
   const h = UI.held
   const st = target(p)
-  const l = !h ? looseAhead(p) : null
+  // a prop on the floor ahead matters with empty hands (take it) or when it joins with what I hold
+  const ahead = looseAhead(p)
+  const l = ahead && (!h || join(h, ahead.it)) ? ahead : null
   const look = l ? null : st
   UI.look = look?.id ?? null
   setMarker(look)
-  const v = l ? { verb: 'TOMAR', work: false, wv: undefined } : verbOf(st, h)
+  UI.floorVerb = l ? (h ? 'UNIR' : 'TOMAR') : null
+  const v = l ? { verb: UI.floorVerb, work: false, wv: undefined } : verbOf(st, h)
   UI.canThrow = !!h
   UI.verb = v.verb
   UI.canWork = v.work
@@ -295,9 +299,9 @@ function frame(dt: number) {
     else if (st) sendUse(st.id)
   }
   if (pressed(InputAction.IA_ACTION_3) && h) {
-    // Spawn lobs the held prop with Q; after a playtest the owner asked for a plain drop: on the floor just in
-    // front of your feet, where the main action picks it up again
-    sendDrop(p.x + p.fx * DROP_AHEAD, p.z + p.fz * DROP_AHEAD, (Math.atan2(-p.fx, -p.fz) * 180) / Math.PI + 90)
+    // Spawn lobs the held prop with Q; after playtests the owner asked for a drop that means "leave it here": onto
+    // the bench you face (joining if it fits), into the trash, else on the floor just in front of your feet
+    sendDrop(p.x + p.fx * DROP_AHEAD, p.z + p.fz * DROP_AHEAD, (Math.atan2(-p.fx, -p.fz) * 180) / Math.PI + 90, st?.id ?? '')
   }
 
   // the first-order guide: until the shift's first delivery, an arrow over the station needed next (@sebadl)

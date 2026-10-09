@@ -58,6 +58,14 @@ export const addPart = (base: Item, part: Item): Item => ({
   p: [...(base.p ?? []), part.k],
   ...(part.k === 'blades' && part.s ? { s: 1 } : {})
 })
+// Two things meeting, in either order: a base and a part of it become the base with the part on. null if they do
+// not fit. The one rule behind joining on a bench, with a prop on the floor, and when dropping onto a bench.
+export function join(a: Item | null, b: Item | null): Item | null {
+  if (!a || !b) return null
+  if (canAdd(a, b)) return addPart(a, b)
+  if (canAdd(b, a)) return addPart(b, a)
+  return null
+}
 // a finished prop's dish id, or null
 export function dishOf(it: Item | null): DishId | null {
   if (!it || !isBase(it)) return null

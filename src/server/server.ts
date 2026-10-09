@@ -7,7 +7,7 @@ import { syncEntity } from '@dcl/sdk/network'
 import { AUTH_SERVER_PEER_ID } from '@dcl/sdk/network/message-bus-sync'
 import { CUSTOMER_SPEED, NAMES_EN, S } from '../config'
 import { Fx, newShift, ShiftState, tick } from '../referee'
-import { addPart, BY_ID, canAdd, dippable, dishOf, ENTRY, GIVES, Item, packItem, sharpenable, STATIONS, unpackItem } from '../shop'
+import { addPart, BY_ID, canAdd, dippable, dishOf, ENTRY, GIVES, Item, join, packItem, sharpenable, STATIONS, unpackItem } from '../shop'
 import { Floor, Hand, Shift, StationState } from '../shared/components'
 import { room } from '../shared/messages'
 import { pickRoom, ROOMS } from '../shared/rooms'
@@ -165,13 +165,17 @@ function use(address: string, id: string) {
         setStation(R, st.id, h)
         setHeld(me, null)
         snd(R, 'set-down-wood', st)
-      } else if (h && it && canAdd(it, h)) {
-        setStation(R, st.id, addPart(it, h))
-        setHeld(me, null)
-        snd(R, 'part-snap-click', st)
-      } else if (h && it && canAdd(h, it)) {
-        setStation(R, st.id, null)
-        setHeld(me, addPart(h, it))
+      } else if (h && it && join(it, h)) {
+        // base and part meet on the bench, whichever of the two was lying there: the joined prop comes to your hands
+        // if you were holding the base, stays on the bench if the base was there
+        const made = join(it, h) as Item
+        if (canAdd(h, it)) {
+          setStation(R, st.id, null)
+          setHeld(me, made)
+        } else {
+          setStation(R, st.id, made)
+          setHeld(me, null)
+        }
         snd(R, 'part-snap-click', st)
       } else if (h && it) nope(address, 'no encajan', "those don't fit")
       return
@@ -361,19 +365,38 @@ export function initServer() {
   room.onMessage('pick', (m, ctx) => {
     const R = ctx ? roomOf(ctx.from) : null
     const me = ctx ? handOf(ctx.from) : null
-    if (!R || !me) return
+    if (!ctx || !R || !me) return
     const l = R.floor.find((x) => x.id === m.id)
-    if (!l || heldOf(me)) return
+    if (!l) return
+    const h = heldOf(me)
+    // empty hands take it; a base and its part join in your hands, whichever of the two was on the floor
+    const got = h ? join(h, l.it) : l.it
+    if (!got) return nope(ctx.from, 'no encajan', "those don't fit")
     R.floor = R.floor.filter((x) => x.id !== l.id)
     writeFloor(R)
-    setHeld(me, l.it)
-    snd(R, 'grab-tool', l)
+    setHeld(me, got)
+    snd(R, h ? 'part-snap-click' : 'grab-tool', l)
   })
   room.onMessage('drop', (m, ctx) => {
     const R = ctx ? roomOf(ctx.from) : null
     const me = ctx ? handOf(ctx.from) : null
     const h = me ? heldOf(me) : null
     if (!R || !me || !h) return
+    // facing a bench or the trash, "drop" means "leave it here" (playtest: dropping at a lit bench put it on the floor)
+    const st = BY_ID[m.station]
+    if (st?.kind === 'trash') {
+      setHeld(me, null)
+      return snd(R, 'trash-clang', st)
+    }
+    if (st?.kind === 'counter') {
+      const it = stationItem(R, st.id)
+      const made = it ? join(it, h) : h
+      if (made) {
+        setStation(R, st.id, made)
+        setHeld(me, null)
+        return snd(R, it ? 'part-snap-click' : 'set-down-wood', st)
+      }
+    }
     // on the floor, inside the walls
     const x = Math.max(-6.0, Math.min(6.0, m.x))
     const z = Math.max(-3.9, Math.min(3.9, m.z))

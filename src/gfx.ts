@@ -228,6 +228,15 @@ export function roomRoot(): Entity {
 }
 export function setRoomHeight(y: number) {
   roomY = y
+  roomShown = true
   Transform.getMutable(roomRoot()).position = sp(0, y, 0)
+}
+// back on the lot: the room (and all that hangs from it, the guide arrow included) goes out of sight again. From
+// below it showed as a black rectangle in the sky (playtest feedback).
+let roomShown = false
+export function hideRoom() {
+  if (!roomShown) return
+  roomShown = false
+  Transform.getMutable(roomRoot()).position = sp(0, -300, 0)
 }
 export const rl = (x: number, y: number, z: number) => Vector3.create(x, y, -z)

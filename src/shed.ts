@@ -3,6 +3,8 @@
 // what they show), scripts/gen/locked-door.js and the shed-seal-* colliders of places/main/cells/x0z0.scene.
 // Spawn draws these as scripted meshes; here they are boxes and cylinders in the same places and colours.
 import {
+  AvatarModifierArea,
+  AvatarModifierType,
   Billboard,
   BillboardMode,
   ColliderLayer,
@@ -19,7 +21,7 @@ import {
 import { Color4, Quaternion, Vector3 } from '@dcl/sdk/math'
 import { loop, stopLoop } from './audio'
 import { DOOR, SND, TEX } from './config'
-import { anchor, c3, c4, lball, lbox, lcyl, lcylX, Mat, rl, roomRoot, yaw } from './gfx'
+import { anchor, c3, c4, lball, lbox, lcyl, lcylX, Mat, rl, roomRoot, sp, yaw } from './gfx'
 import { stationItem, stationProg } from './net'
 import { PropSlot, setVisible, slotAt } from './props'
 import { GIVES, Item, Station, STATIONS } from './shop'
@@ -81,9 +83,22 @@ export function buildClosedShed() {
 }
 
 // --- the shell ------------------------------------------------------------------------------------------
+// No nametags over the makers while they work (playtest feedback; Spawn: nameplates off in its own way). One
+// area covering the three rooms' heights; on the lot the names stay.
+let tagsHidden = false
+function hideNametags() {
+  if (tagsHidden) return
+  tagsHidden = true
+  const e = engine.addEntity()
+  const size = Vector3.create(40, 60, 30)
+  Transform.create(e, { position: sp(0, 42, 0), scale: size })
+  AvatarModifierArea.create(e, { area: size, modifiers: [AvatarModifierType.AMT_HIDE_NAMETAGS], excludeIds: [] })
+}
+
 // The working shed, hung from the room root (gfx.ts): built once, on the first entry, and moved to whichever
 // room the server gives you.
 export function buildInterior() {
+  hideNametags()
   const root = anchor(0, 0, 0, 0, { parent: roomRoot() })
   const o = { parent: root }
   const oc = { parent: root, collide: true }
