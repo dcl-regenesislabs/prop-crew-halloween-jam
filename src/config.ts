@@ -1,5 +1,5 @@
 // Every tuned number of the prop shed. Ported verbatim from the Spawn world's data files:
-// scripts/lib/data/shop.yml, throw.yml, player.yml, aesthetic.yml (world seq 218).
+// scripts/lib/data/shop.yml, throw.yml, player.yml, aesthetic.yml (world seq 292).
 
 // --- where the Spawn lot sits in the scene --------------------------------------------------------------
 // Game logic runs in Spawn coordinates (shed centred on 0,0; -Z is the back wall, where the customers stand).
@@ -26,7 +26,6 @@ export const S = {
   tipMax: 10,
   stars: [60, 120, 200],
   queue: 0, // nobody waits behind them: two customers in the shed at once
-  teach: ['girl', 'ghost', 'butcher'] as WhoId[],
   // seconds = the recipe walked at a quick pace; patience = seconds + margin + walkIn
   dishes: {
     knife: { name: 'Cuchillo ensangrentado', base: 'knife', parts: [], sharp: true, blood: true, reward: 20, seconds: 10 },
@@ -101,14 +100,16 @@ export const WANDER_SPEED = 1.1
 
 // --- places ---------------------------------------------------------------------------------------------
 export const SPAWN_IN_SHED = { x: 0, y: 0.2, z: 0.4 } // places/main defaultSpawnPoint
-export const SPAWN_ON_LOT = { x: 0, y: 0.2, z: 9.5 } // places/lobby defaultSpawnPoint
+export const SPAWN_ON_LOT = { x: 0, y: 0.2, z: 10.5 } // places/lobby defaultSpawnPoint (z 9.5), a step back from the deeper shed
 // scripts/lib/doors.js: the shed's two doors on the lot. Green goes in; red was the private shoot (not ported).
+// Spawn's lobby keeps its closed shed at the old depth (doors at z 2.95); here the one shed is the deeper
+// working one (front wall z 4.05 since seq 292), so the doors stand on that wall.
 export const DOORS = [
-  { id: 'door-public', to: 'public', x: -2.6, z: 2.95 },
-  { id: 'door-private', to: 'private', x: 2.6, z: 2.95 }
+  { id: 'door-public', to: 'public', x: -2.6, z: 4.15 },
+  { id: 'door-private', to: 'private', x: 2.6, z: 4.15 }
 ]
 // the shed's inside, as scripts/camera.js tests it
-export const insideShed = (x: number, z: number) => Math.abs(x) < 6.3 && Math.abs(z) < 3.1
+export const insideShed = (x: number, z: number) => Math.abs(x) < 6.3 && Math.abs(z) < 4.3
 
 // --- assets ---------------------------------------------------------------------------------------------
 export const SND = (n: string) => `assets/Audio/sfx-${n}.mp3`

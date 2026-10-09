@@ -30,6 +30,7 @@ export type ShiftState = {
   nextAt: number
   n: number
   rungAt: number
+  lastDish: string // the prop the last customer asked for: the next one asks for another
 }
 export const newShift = (): ShiftState => ({
   on: false,
@@ -45,7 +46,8 @@ export const newShift = (): ShiftState => ({
   customers: [],
   nextAt: 0,
   n: 0,
-  rungAt: 0
+  rungAt: 0,
+  lastDish: ''
 })
 
 export type Fx =
@@ -125,7 +127,10 @@ export function tick(P: ShiftState, env: Env): { fx: Fx[]; changed: boolean } {
   const busy = Object.keys(P.orders).length + P.line.length
   if (now >= P.nextAt && busy < S.maxOrders + S.queue && P.customers.filter((c) => !c.leave).length < S.maxOrders + S.queue) {
     const n = P.n + 1
-    const who = n <= S.teach.length ? S.teach[n - 1] : WHO[Math.floor(env.random() * WHO.length)]
+    // any prop can open the shift (@sebadl), never the same one twice running
+    const pool = WHO.filter((w) => S.who[w].dish !== P.lastDish)
+    const who = pool[Math.floor(env.random() * pool.length)]
+    P.lastDish = S.who[who].dish
     const id = 'c' + n + '-' + Math.floor(now % 100000)
     P.customers.push({ id, who, dish: S.who[who].dish, to: LINE_SPOT(P.line.length), leave: false, mood: '', bar: false })
     P.line.push(id)

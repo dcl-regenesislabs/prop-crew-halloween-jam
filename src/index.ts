@@ -1,4 +1,4 @@
-// Galpón de Utilería, Decentraland port of the Spawn world @sebadl/galpon-de-utileria (seq 218).
+// Galpón de Utilería, Decentraland port of the Spawn world @sebadl/galpon-de-utileria (seq 292).
 // A co-op rush on a horror film lot: movie monsters queue at the prop shed's two windows, and the makers
 // inside build what each one asks for (bloody knife, machete, chainsaw, flashlight, walkie, bladed glove)
 // before their patience runs out. 180 s shifts, score, one to three stars.

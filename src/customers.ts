@@ -107,12 +107,12 @@ export function updateCustomers(dt: number) {
 
 // "+25" rising over the window, "-10" when one storms off (Spawn's damageNumber event)
 const pops: { e: Entity; t: number; y: number; x: number; z: number }[] = []
-export function popNumber(text: string, x: number, z: number, color: Color4) {
+export function popNumber(text: string, x: number, z: number, color: Color4, size = 1.4, y = 2.6) {
   const e = engine.addEntity()
-  Transform.create(e, { position: sp(x, 2.6, z), scale: Vector3.create(1.4, 1.4, 1.4) })
+  Transform.create(e, { position: sp(x, y, z), scale: Vector3.create(size, size, size) })
   Billboard.create(e, { billboardMode: BillboardMode.BM_ALL })
   TextShape.create(e, { text, fontSize: 5, textColor: color, outlineColor: { r: 0.1, g: 0.06, b: 0.12 }, outlineWidth: 0.2, textAlign: TextAlignMode.TAM_MIDDLE_CENTER })
-  pops.push({ e, t: 0, y: 2.6, x, z })
+  pops.push({ e, t: 0, y, x, z })
 }
 export function updatePops(dt: number) {
   for (let i = pops.length - 1; i >= 0; i--) {

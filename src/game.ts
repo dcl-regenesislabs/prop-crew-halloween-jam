@@ -1,20 +1,21 @@
 // The prop maker's hands and the referee's seat.
-// Ported from scripts/maker.js (E grabs, sets down, combines, dips, serves; F held grinds or fuels; one thing
+// Ported from scripts/maker.js (E grabs, sets down, combines, dips, serves; E HELD grinds and fuels; one thing
 // in the hands; the lot's doors), scripts/loose.js (thrown props) and the wiring around places/main/sim.js.
-// Keys: E = IA_PRIMARY (interact), F = IA_SECONDARY (work, held), 1 = IA_ACTION_3 (throw; Q in Spawn, which a
-// Decentraland scene cannot bind). On a phone the client draws those three as its own on-screen buttons.
-import { AvatarAnchorPointType, AvatarAttach, engine, Entity, InputAction, inputSystem, PointerEventType, TouchScreenControls, Transform } from '@dcl/sdk/ecs'
+// Keys: E = IA_PRIMARY (one interaction key since seq 292: press and hold), 1 = IA_ACTION_3 (throw; Q in Spawn,
+// which a Decentraland scene cannot bind). On a phone the client draws those as its own on-screen buttons.
+// No jumping (@sebadl): the jump input is switched off for the player.
+import { AvatarAnchorPointType, AvatarAttach, engine, Entity, InputAction, InputModifier, inputSystem, PointerEventType, TouchScreenControls, Transform } from '@dcl/sdk/ecs'
 import { Color4, Quaternion, Vector3 } from '@dcl/sdk/math'
 import { movePlayerTo } from '~system/RestrictedActions'
-import { DOORS, insideShed, MUSIC, ORIGIN, S, SND, SPAWN_IN_SHED, SPAWN_ON_LOT, T } from './config'
+import { DOORS, insideShed, MUSIC, NAMES_EN, ORIGIN, S, SND, SPAWN_IN_SHED, SPAWN_ON_LOT, T } from './config'
 import { loop, play, playFlat, stopLoop } from './audio'
 import { gone, popNumber, updateCustomers, updatePops } from './customers'
 import { sp, yaw } from './gfx'
 import { bus, cards, floor, isHost, Loose, me, meMut, myId, now, ready, setStation, setStationProg, shift, stampClock, stationItem, stationProg, writeFloor, writeShift } from './net'
 import { PropSlot, slotAt } from './props'
 import { Fx, ShiftState, tick } from './referee'
-import { setMarker, showFront } from './shed'
-import { addPart, BY_ID, canAdd, dippable, dishOf, feelOf, GIVES, Item, itemKey, packItem, sharpenable, Station, STATIONS, stationUnder, unpackItem } from './shop'
+import { crateBounce, setGuide, setMarker, showFront } from './shed'
+import { addPart, BY_ID, canAdd, dippable, dishOf, feelOf, GIVES, Item, itemKey, nextStep, packItem, sharpenable, Station, STATIONS, stationUnder, unpackItem } from './shop'
 import { hint, UI } from './state'
 
 // Headless test switch (references/testing.md): the scene plays a short shift by itself and logs it.
@@ -43,12 +44,18 @@ function setHand(it: Item | null) {
   if (c && c.held !== packItem(it)) c.held = packItem(it)
 }
 const snd = (n: string, at: { x: number; y?: number; z: number }) => {
-  play(n, at)
+  play(n, at, 1)
   bus.emit('snd', { n, x: at.x, y: at.y ?? 1, z: at.z, from: myId })
 }
-function nope(why: string, at: { x: number; z: number }) {
-  play('wrong-buzz', at, 0.5)
-  hint(why)
+function nope(why: string, en: string, at: { x: number; z: number }) {
+  play('buzz-short', at, 1)
+  hint(why, en)
+}
+const nameOf = (k: string, en: boolean) => (en ? NAMES_EN[k] : S.names[k]) ?? k
+// a crate answers a good grab: it bounces and pops the item's name over it (maker.js crateHit)
+function crateHit(st: Station, k: string) {
+  crateBounce(st.id)
+  popNumber('+' + nameOf(k, UI.lang === 'en'), st.x, st.z, Color4.create(0.965, 0.757, 0.467, 1), 0.9, 1.3)
 }
 
 // a thrown prop lying in reach, a metre ahead of the maker
@@ -107,16 +114,18 @@ function useStation(st: Station) {
       const g: Item = { k: GIVES(st.id) as string }
       if (!h) {
         setHand(g)
-        snd('grab-tool', at)
+        snd('item-pickup-pop', at)
+        crateHit(st, g.k)
       } else if (canAdd(h, g)) {
         setHand(addPart(h, g))
         snd('part-snap-click', at)
-      } else nope('eso no va con ' + (S.names[h.k] ?? h.k), at)
+        crateHit(st, g.k)
+      } else nope('eso no va con ' + (S.names[h.k] ?? h.k), "that doesn't go with the " + nameOf(h.k, true).toLowerCase(), at)
       return
     }
     case 'grinder':
     case 'pump': {
-      // work stations never hold a prop: you keep it in your hands and hold F there
+      // work stations never hold a prop: you keep it in your hands and HOLD E there (the frame fills the bar)
       if (!h && it) {
         setStation(st.id, null)
         setHand(it)
@@ -124,8 +133,12 @@ function useStation(st: Station) {
         return
       }
       if (!h) return
-      if (st.kind === 'pump') return nope(h.k !== 'saw' ? 'el surtidor es solo para la motosierra' : h.g ? 'ya tiene nafta' : 'mantené F / CARGAR para llenarla', at)
-      return nope(sharpenable(h) ? 'mantené F / AFILAR para afilarlo' : h.s ? 'ya está afilado' : 'la amoladora es para cuchillos, machetes, cuchillas y el guante', at)
+      if (st.kind === 'pump') {
+        if (h.k === 'saw' && !h.g) return
+        return nope(h.k !== 'saw' ? 'el surtidor es solo para la motosierra' : 'ya tiene nafta', h.k !== 'saw' ? 'the pump is only for the chainsaw' : "it's already fuelled", at)
+      }
+      if (sharpenable(h)) return
+      return nope(h.s ? 'ya está afilado' : 'la amoladora es para cuchillos, machetes, cuchillas y el guante', h.s ? "it's already sharp" : 'the grinder is for knives, machetes, blades and the glove', at)
     }
     case 'counter': {
       if (!h && it) {
@@ -144,14 +157,14 @@ function useStation(st: Station) {
         setStation(st.id, null)
         setHand(addPart(h, it))
         snd('part-snap-click', at)
-      } else if (h && it) nope('no encajan', at)
+      } else if (h && it) nope('no encajan', "those don't fit", at)
       return
     }
     case 'bucket': {
       if (h && dippable(h)) {
         setHand({ ...h, b: 1 })
-        snd('paint-splash-dip', at)
-      } else if (h) nope(h.b ? 'ya está ensangrentado' : 'solo cuchillos y machetes van a la sangre', at)
+        snd('plunk-short', at)
+      } else if (h) nope(h.b ? 'ya está ensangrentado' : 'solo cuchillos y machetes van a la sangre', h.b ? "it's already bloody" : 'only knives and machetes go in the blood', at)
       return
     }
     case 'trash':
@@ -163,12 +176,12 @@ function useStation(st: Station) {
     case 'window': {
       const ord = shift().orders[st.id]
       if (!ord) {
-        if (h) nope('no hay nadie en esta ventanilla', at)
+        if (h) nope('no hay nadie en esta ventanilla', "nobody's at this window", at)
         return
       }
       if (!h) return
       const d = dishOf(h)
-      if (d !== ord.dish) return nope(d ? 'pidió otra cosa' : 'todavía no está terminado', at)
+      if (d !== ord.dish) return nope(d ? 'pidió otra cosa' : 'todavía no está terminado', d ? 'they ordered something else' : "it's not finished yet", at)
       // the referee scores it (Spawn: customer.state.served)
       const c = meMut()
       if (c) c.serve = ord.cust
@@ -190,9 +203,9 @@ function verbOf(st: Station | null): { verb: string | null; work: boolean; wv?: 
       return { verb: !h ? 'TOMAR' : canAdd(h, g) ? 'PONER' : null, work: false }
     }
     case 'grinder':
-      return { verb: !h && it ? 'TOMAR' : null, work: sharpenable(h), wv: 'AFILAR' }
+      return { verb: !h && it ? 'TOMAR' : sharpenable(h) ? 'AFILAR' : null, work: sharpenable(h), wv: 'AFILAR' }
     case 'pump':
-      return { verb: !h && it ? 'TOMAR' : null, work: !!h && h.k === 'saw' && !h.g, wv: 'CARGAR' }
+      return { verb: !h && it ? 'TOMAR' : h && h.k === 'saw' && !h.g ? 'CARGAR' : null, work: !!h && h.k === 'saw' && !h.g, wv: 'CARGAR' }
     case 'counter':
       return { verb: h && !it ? 'APOYAR' : !h && it ? 'TOMAR' : h && it && (canAdd(it, h) || canAdd(h, it)) ? 'UNIR' : null, work: false }
     case 'bucket':
@@ -226,9 +239,9 @@ function plan(it: Item, x0: number, y0: number, z0: number, vx: number, vy: numb
     y += v * dt
     z += vz * dt
     // the tin walls stop it
-    if (Math.abs(x) > 6.1 || Math.abs(z) > 2.7) {
+    if (Math.abs(x) > 6.1 || Math.abs(z) > 3.9) {
       x = Math.max(-6.1, Math.min(6.1, x))
-      z = Math.max(-2.7, Math.min(2.7, z))
+      z = Math.max(-3.9, Math.min(3.9, z))
       vx = 0
       vz = 0
     }
@@ -363,11 +376,11 @@ function updateMove(p: Pose, dt: number) {
 }
 function enterShed(d: { x: number; z: number }) {
   play('heavy-wooden-barn-door-creak-open', { x: d.x, y: 1.2, z: d.z })
-  go(SPAWN_IN_SHED, { x: 0, y: 1, z: -2.2 }, true)
+  go(SPAWN_IN_SHED, { x: 0, y: 1, z: -3.4 }, true)
 }
 function goLot() {
   if (hand()) setHand(null)
-  play('heavy-wooden-barn-door-creak-open', { x: 0, y: 1.2, z: 2.9 }, 0.7)
+  play('heavy-wooden-barn-door-creak-open', { x: 0, y: 1.2, z: 4.1 }, 0.7)
   go(SPAWN_ON_LOT, { x: 0, y: 1.5, z: 0 }, false)
 }
 
@@ -484,6 +497,7 @@ function frame(dt: number) {
   if (!inside) {
     // on the lot: E (or the HUD's ENTRAR) in front of a door walks you in
     setMarker(null)
+    setGuide(null, '')
     UI.look = null
     UI.verb = null
     UI.canWork = false
@@ -492,7 +506,7 @@ function frame(dt: number) {
     UI.nearDoor = d ? (d.to as 'public' | 'private') : null
     if ((pressed(InputAction.IA_PRIMARY) || UI.wantEnter) && !move) {
       if (d?.to === 'public' || (UI.wantEnter && !d)) enterShed(d ?? DOORS[0])
-      else if (d) hint('el rodaje privado no existe en Decentraland: usá la puerta verde')
+      else if (d) hint('el rodaje privado no existe en Decentraland: usá la puerta verde', 'private shoots do not exist in Decentraland: use the green door')
     }
     UI.wantEnter = false
     UI.wantExit = false
@@ -533,8 +547,13 @@ function frame(dt: number) {
   }
   if (pressed(InputAction.IA_ACTION_3)) toss(p)
 
-  // F held at the grinder or the pump, the prop still in your hands: the station's bar fills, the prop changes in your grip
-  const working = inputSystem.isPressed(InputAction.IA_SECONDARY) && v.work && !!st && !l
+  // the first-order guide: until the shift's first delivery, an arrow over the station needed next (@sebadl)
+  const P = shift()
+  const step = P.on && P.served === 0 ? nextStep(P.orders, hand(), nameOf) : null
+  setGuide(step?.id ?? null, step ? (UI.lang === 'en' ? step.en : step.es) : '')
+
+  // E held at the grinder or the pump, the prop still in your hands: the station's bar fills, the prop changes in your grip
+  const working = inputSystem.isPressed(InputAction.IA_PRIMARY) && v.work && !!st && !l
   if (!working || !st) {
     if (workAt) {
       setStationProg(workAt, 0)
@@ -549,11 +568,7 @@ function frame(dt: number) {
   const grind = st.kind === 'grinder'
   const at = { x: st.x, y: 1, z: st.z }
   const prog = stationProg(st.id) + dt / (grind ? S.grindSeconds : S.fillSeconds)
-  const tk = Math.floor(prog * 6)
-  if (tk !== grTick) {
-    grTick = tk
-    if (tk % 3 === 0) snd(grind ? 'bench-grinder-whine' : 'gas-glug-pour', at)
-  }
+  // the motor's sound is the station's own loop now (shed.ts), not a tick from here
   if (prog >= 1) {
     setHand(grind ? { ...h, s: 1 } : { ...h, g: 1 })
     setStationProg(st.id, 0)
@@ -624,5 +639,7 @@ export function initGame() {
   loop('crickets', SND('night-crickets-distant-wind-eerie-ambience-loop'), { volume: 0.35, global: true })
   loop('shed', SND('workshop-night-ambience-loop'), { at: { x: 0, y: 1.5, z: 0 }, volume: 0.6 })
   loop('balloon', SND('film-set-balloon-light-electric-hum-loop'), { at: { x: 0, y: 6, z: 10 }, volume: 0.5 })
+  // @sebadl: no jumping in The Set
+  InputModifier.createOrReplace(engine.PlayerEntity, { mode: InputModifier.Mode.Standard({ disableJump: true }) })
   engine.addSystem(frame)
 }

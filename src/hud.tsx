@@ -64,15 +64,15 @@ function prompt(): string {
       return !h ? (en ? 'E take ' : 'E tomar ') + nameOf(g.k) : canAdd(h, g) ? (en ? 'E add ' : 'E poner ') + nameOf(g.k) : ''
     }
     case 'grinder':
-      return sharpenable(h) ? (en ? 'hold F to sharpen' : 'mantené F para afilar') : !h && it ? (en ? 'E take' : 'E tomar') : ''
+      return sharpenable(h) ? (en ? 'hold E to sharpen' : 'mantené E para afilar') : !h && it ? (en ? 'E take' : 'E tomar') : ''
     case 'pump':
-      return h?.k === 'saw' && !h.g ? (en ? 'hold F to fuel it' : 'mantené F para cargar nafta') : !h && it ? (en ? 'E take' : 'E tomar') : ''
+      return h?.k === 'saw' && !h.g ? (en ? 'hold E to fuel up' : 'mantené E para cargar nafta') : !h && it ? (en ? 'E take' : 'E tomar') : ''
     case 'counter':
-      return h && !it ? (en ? 'E put down' : 'E apoyar') : !h && it ? (en ? 'E take' : 'E tomar') : h && it ? (en ? 'E combine' : 'E combinar') : ''
+      return h && !it ? (en ? 'E set down' : 'E apoyar') : !h && it ? (en ? 'E take' : 'E tomar') : h && it ? (en ? 'E combine' : 'E combinar') : ''
     case 'bucket':
       return dippable(h) ? (en ? 'E dip in fake blood' : 'E mojar en sangre falsa') : ''
     case 'trash':
-      return h ? (en ? 'E bin ' : 'E tirar ') + nameOf(h.k) : ''
+      return h ? (en ? 'E toss ' : 'E tirar ') + nameOf(h.k) : ''
     case 'window':
       return shift().orders[st.id] && h ? (en ? 'E hand over' : 'E entregar') : ''
   }
@@ -86,25 +86,25 @@ function tip(): { k: string; n: string; d: string } | null {
   const en = EN()
   switch (st.kind) {
     case 'grinder':
-      return { k: 'grinder', n: en ? 'Grinder' : 'Amoladora', d: h?.s ? (en ? 'already sharp' : 'ya está afilado') : en ? 'bring a knife, machete or blades and hold F' : 'traé un cuchillo, machete o cuchillas y mantené F' }
+      return { k: 'grinder', n: en ? 'Grinder' : 'Amoladora', d: h?.s ? (en ? 'already sharp' : 'ya está afilado') : en ? 'bring a knife, machete or blades and hold E' : 'traé un cuchillo, machete o cuchillas y mantené E' }
     case 'pump':
-      return { k: 'gas', n: en ? 'Gas pump' : 'Surtidor de nafta', d: h?.k === 'saw' && h.g ? (en ? 'already fuelled' : 'ya tiene nafta') : en ? 'bring the chainsaw and hold F' : 'traé la motosierra y mantené F' }
+      return { k: 'gas', n: en ? 'Gas pump' : 'Surtidor de nafta', d: h?.k === 'saw' && h.g ? (en ? 'already fuelled' : 'ya tiene nafta') : en ? 'bring the chainsaw and hold E' : 'traé la motosierra y mantené E' }
     case 'trash':
-      return { k: 'tacho', n: en ? 'Trash' : 'Tacho', d: en ? 'holding something, E bins it' : 'con algo en la mano, E lo tira' }
+      return { k: 'tacho', n: en ? 'Trash' : 'Tacho', d: en ? 'holding something, E tosses it' : 'con algo en la mano, E lo tira' }
     case 'bucket':
-      return { k: 'paint', n: en ? 'Fake blood bucket' : 'Balde de sangre falsa', d: h?.b ? (en ? 'already bloody' : 'ya está ensangrentado') : en ? 'bring a sharpened knife or machete and press E' : 'traé un cuchillo o machete afilado y E' }
+      return { k: 'paint', n: en ? 'Fake blood bucket' : 'Balde de sangre falsa', d: h?.b ? (en ? 'already bloody' : 'ya está ensangrentado') : en ? 'bring a sharpened knife or machete and E' : 'traé un cuchillo o machete afilado y E' }
   }
   return null
 }
 
-// scripts/lib/guide.js, every line in both languages (keys line adapted: throw is 1 here, Q in Spawn)
+// scripts/lib/guide.js at seq 292, every line in both languages (keys line adapted: throw is 1 here, Q in Spawn)
 const PHOTO: Record<string, string> = { crate: 'g-crate', bench: 'g-bench', grinder: 'g-grinder', paint: 'g-bucket', gas: 'g-pump', window: 'g-window' }
 const GUIDE = {
   es: {
     title: 'Cómo se trabaja en el galpón',
     close: '¡A trabajar!',
     example: 'Ejemplo: Cuchillo ensangrentado',
-    keys: '¡ACCIÓN! empieza el turno · en el tacho, E descarta · 1 revolea lo que tenés · E usar · F afilar',
+    keys: '¡ACCIÓN! empieza el turno · TIRAR en el tacho descarta · LANZAR revolea lo que tenés · E para todo (mantené E para afilar y cargar) · 1 lanzar',
     cards: [
       ['crate', 'Cajones', 'USAR frente a un cajón agarra lo que tiene adentro. Con algo en la mano, le suma la pieza si encaja.'],
       ['bench', 'Banco', 'USAR apoya lo que tenés. Con otra pieza en la mano, UNIR las arma juntas.'],
@@ -119,13 +119,13 @@ const GUIDE = {
     title: 'How the prop shed works',
     close: "Let's work!",
     example: 'Example: Bloody knife',
-    keys: '¡ACCIÓN! starts the shift · E at the trash bins it · 1 tosses what you hold · E use · F sharpen',
+    keys: 'ACTION! starts the shift · USE at the trash bins it · THROW tosses what you hold · E for everything (hold E to sharpen and fuel) · 1 throw',
     cards: [
       ['crate', 'Crates', "USE at a crate grabs what's inside. Holding something, it adds the part if it fits."],
       ['bench', 'Bench', 'USE sets down what you hold. Holding another part, it puts them together.'],
       ['grinder', 'Grinder', 'Holding a knife, machete, blades or the bladed glove, hold SHARPEN at the grinder until the bar fills.'],
       ['paint', 'Blood bucket', 'Holding a sharpened blade, USE dips it in fake blood.'],
-      ['gas', 'Gas pump', 'Holding the chainsaw, hold FILL at the pump until the bar fills.'],
+      ['gas', 'Gas pump', 'Holding the chainsaw, hold FUEL at the pump until the bar fills.'],
       ['window', 'Windows', "Bring the finished order to that customer's window and USE to hand it over. Wait too long and they leave."]
     ],
     steps: ['Grab a knife from its crate', 'Sharpen it at the grinder', 'Dip it in the bucket', 'Hand it over at the window']
@@ -169,11 +169,13 @@ const img = (file: string, size: number, key?: string) => (
 )
 const icon = (name: string, size: number, key?: string) => img(name + '-ico.png', size, key)
 // .lg / .lbl2: ES | EN, the one in use in amber
-function LangToggle() {
+function LangToggle(small = false) {
+  const h = small ? 40 : 48
+  const w = small ? 54 : 70
   return (
-    <UiEntity uiTransform={{ height: 64, padding: 5, alignItems: 'center', borderWidth: 3, borderColor: EDGE, borderRadius: 14 }} uiBackground={{ color: PANEL }}>
-      <Btn v="ES" w={70} h={48} size={22} bg={EN() ? INK : AMBER} fg={EN() ? TEXT : INK} onPress={() => setLang('es')} />
-      <Btn v="EN" w={70} h={48} size={22} bg={EN() ? AMBER : INK} fg={EN() ? INK : TEXT} onPress={() => setLang('en')} />
+    <UiEntity uiTransform={{ height: h + 16, padding: 5, margin: { left: 5 }, alignItems: 'center', borderWidth: 3, borderColor: EDGE, borderRadius: 14 }} uiBackground={{ color: PANEL }}>
+      <Btn v="ES" w={w} h={h} size={small ? 19 : 22} bg={EN() ? INK : AMBER} fg={EN() ? TEXT : INK} onPress={() => setLang('es')} />
+      <Btn v="EN" w={w} h={h} size={small ? 19 : 22} bg={EN() ? AMBER : INK} fg={EN() ? INK : TEXT} onPress={() => setLang('en')} />
     </UiEntity>
   )
 }
@@ -193,7 +195,7 @@ function Lot() {
       {/* .lbc: what the two doors are */}
       <UiEntity uiTransform={{ positionType: 'absolute', position: { top: 12, left: 0 }, width: '100%', height: 200, justifyContent: 'center', alignItems: 'flex-start' }}>
         <UiEntity uiTransform={{ width: 800, margin: { left: 60 }, flexDirection: 'column', alignItems: 'center', padding: { top: 8, bottom: 10 }, borderWidth: 4, borderColor: EDGE, borderRadius: 20 }} uiBackground={{ color: PANEL }}>
-          <Txt v="<b>GALPÓN DE UTILERÍA</b>" size={32} w={780} h={40} />
+          <Txt v={en ? '<b>THE PROP SHED</b>' : '<b>GALPÓN DE UTILERÍA</b>'} size={32} w={780} h={40} />
           <Txt v={en ? 'THE LOT · BETWEEN TAKES' : 'EL SET · ENTRE TOMAS'} size={19} w={780} h={26} color={hex('#f6e3c4', 0.75)} />
           <UiEntity uiTransform={{ width: 770, height: 92, margin: { top: 6 } }}>
             <UiEntity uiTransform={{ width: 385, height: 92, flexDirection: 'column' }}>
@@ -267,7 +269,7 @@ function Shed() {
   const left = P.on ? Math.max(0, Math.ceil((P.endsAt - t) / 1000)) : 0
   const clock = Math.floor(left / 60) + ':' + ('0' + (left % 60)).slice(-2)
   const orders = Object.values(P.orders).sort((a, b) => a.until - b.until)
-  const hint = UI.hintAt && Date.now() - UI.hintAt < 1800 ? UI.hint : ''
+  const hint = UI.hintAt && Date.now() - UI.hintAt < 1800 ? (en ? UI.hintEn || UI.hint : UI.hint) : ''
   const p = prompt()
   const tt = !p ? tip() : null
   const h = UI.held
@@ -277,8 +279,9 @@ function Shed() {
   const wrap = !P.on && P.last && t - P.endsAt < 12000 ? P.last : null
   return (
     <UiEntity uiTransform={{ width: '100%', height: '100%', positionType: 'absolute' }}>
-      {/* .top: REC clock and the take, or the record between takes; the guide, the way out, the room */}
-      <UiEntity uiTransform={{ positionType: 'absolute', position: { top: 12, left: 0 }, width: '100%', height: 60, justifyContent: 'center', alignItems: 'center' }}>
+      {/* .top: REC clock and the take, or the record between takes; the guide, the way out, the room, the language.
+          Centred between takes; during a shift it sits left of the tickets so two of them never cover it */}
+      <UiEntity uiTransform={{ positionType: 'absolute', position: { top: 12, left: P.on ? 100 : 0 }, width: P.on ? 780 : '100%', height: 60, justifyContent: P.on ? 'flex-start' : 'center', alignItems: 'center' }}>
         {P.on ? (
           <UiEntity uiTransform={{ width: 196, height: 46, margin: { left: 5, right: 5 }, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: EDGE, borderRadius: 14 }} uiBackground={{ color: PANEL }}>
             <Txt v="● REC" size={26} w={100} h={40} color={REC} />
@@ -289,6 +292,8 @@ function Shed() {
         <Btn v="<b>?</b>" w={56} h={56} size={34} bg={AMBER} radius={28} onPress={() => (UI.guide = true)} />
         <Btn v={en ? 'LOT' : 'SET'} w={84} h={56} size={22} bg={AMBER} radius={28} onPress={() => (UI.wantExit = true)} />
         <Pill v={en ? 'public' : 'público'} size={19} color={hex('#f6e3c4', 0.8)} />
+        {/* .lg: ES/EN always in the shed's top bar (seq 292) */}
+        {LangToggle(true)}
       </UiEntity>
 
       {/* .tix: the tickets, most urgent first from the right edge */}

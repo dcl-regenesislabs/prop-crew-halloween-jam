@@ -17,7 +17,8 @@ import {
   Transform
 } from '@dcl/sdk/ecs'
 import { Color4, Quaternion, Vector3 } from '@dcl/sdk/math'
-import { DOORS, TEX } from './config'
+import { loop, stopLoop } from './audio'
+import { DOORS, SND, TEX } from './config'
 import { anchor, c3, c4, lball, lbox, lcyl, lcylX, Mat, sp, yaw } from './gfx'
 import { stationItem, stationProg } from './net'
 import { PropSlot, setVisible, slotAt } from './props'
@@ -31,8 +32,8 @@ const W = 0.59
 const D = 0.4
 const X0 = -6.25
 const X1 = 6.25
-const Z0 = -2.85
-const Z1 = 2.85
+const Z0 = -4.05 // one tile deeper at the back and the front since seq 292 (@sebadl)
+const Z1 = 4.05
 const H = 3.0
 
 // text that reads from the Spawn direction `facing` (a Spawn yaw): TextShape shows its face toward local -Z
@@ -89,12 +90,7 @@ export function buildShed() {
     lbox(x0, 0.95, Z0 + 0.05, x0 + 2.4, 1.65, Z0 + 0.08, { color: 'oklch(0.6 0.07 65)' }, o)
     for (let i = 0; i < 6; i++) lbox(x0 + 0.28 + i * 0.38, 1.12, Z0 + 0.08, x0 + 0.33 + i * 0.38, 1.45, Z0 + 0.11, { color: 'oklch(0.25 0.02 60)' }, o)
   }
-  // work lamps hanging on their cords (no roof: the camera looks in)
-  for (const [x, z] of [[-3, -0.6], [3, -0.6], [0, 0.9]]) {
-    lbox(x - 0.01, 2.2, z - 0.01, x + 0.01, H, z + 0.01, { color: 'oklch(0.12 0.01 60)' }, o)
-    lcyl(x, 2.05, z, 0.22, 0.15, { color: 'oklch(0.3 0.08 150)' }, { parent: root, top: 0.12 })
-    lball(x, 2.03, z, 0.07, 0.07, 0.07, { color: 'oklch(0.95 0.08 85)', emissive: 'oklch(0.9 0.08 80)', glow: 4 }, o)
-  }
+  // the hanging work lamps are light only: their shades hid the maker from the camera (@sebadl)
   // Spawn lights nine lamps in here (lamp-1..9); Decentraland renders a handful, so the three big ones stay
   for (const [x, z, shadow] of [[-3, -0.6, 0], [3, -0.6, 0], [0, 0.9, 1]]) {
     const l = engine.addEntity()
@@ -126,7 +122,7 @@ export function buildShed() {
   for (const y of [1.05, 1.5]) lbox(4.85, y, Z1 + 0.04, X1 - 0.05, y + 0.14, Z1 + 0.07, { color: WOOD }, o)
   lbox(5.45, 1.25, Z1 + 0.07, 5.6, 1.42, Z1 + 0.1, { color: STEEL, metal: 0.7 }, o)
   // shed-seal-*: invisible walls 6 m high. Once inside nobody walks out; nobody walks in either (doors or HUD only)
-  for (const [x0, z0, x1, z1] of [[-6.5, -3.06, 6.5, -2.94], [-6.5, 2.92, 6.5, 3.04], [-6.44, -3.1, -6.32, 3.1], [6.32, -3.1, 6.44, 3.1]]) {
+  for (const [x0, z0, x1, z1] of [[-6.5, -4.26, 6.5, -4.14], [-6.5, 4.12, 6.5, 4.24], [-6.44, -4.3, -6.32, 4.3], [6.32, -4.3, 6.44, 4.3]]) {
     const e = lbox(x0, 0, z0, x1, 6, z1, null, o)
     MeshCollider.setBox(e, ColliderLayer.CL_PHYSICS)
   }
@@ -209,7 +205,7 @@ function trash(a: Entity) {
   lbox(-0.05, 0.86, -0.03, 0.15, 0.9, 0.07, { color: 'oklch(0.4 0.18 25)' }, o)
 }
 
-type Built = { st: Station; root: Entity; slot: PropSlot; twin: PropSlot | null; bg: Entity | null; fill: Entity | null; shown: number }
+type Built = { st: Station; root: Entity; slot: PropSlot; twin: PropSlot | null; bg: Entity | null; fill: Entity | null; shown: number; running: boolean; hitAt: number }
 const built: Built[] = []
 let marker: Entity
 
@@ -254,19 +250,79 @@ export function buildStations() {
       setVisible(bg, false)
       setVisible(fill, false)
     }
-    built.push({ st, root: a, slot, twin, bg, fill, shown: -1 })
+    built.push({ st, root: a, slot, twin, bg, fill, shown: -1, running: false, hitAt: 0 })
   }
   // what the maker faces right now: a small lit bar over the station (maker.js state.look)
   marker = engine.addEntity()
   Transform.create(marker, { position: Vector3.create(0, -5, 0), scale: Vector3.create(0.9, 0.04, 0.06) })
   MeshRenderer.setBox(marker)
   Material.setBasicMaterial(marker, { diffuseColor: Color4.create(1, 0.85, 0.45, 1) })
+  // the first-order guide: an amber label and a bouncing arrow over the station needed next (ui.js arrow)
+  guide = engine.addEntity()
+  Transform.create(guide, { position: Vector3.create(0, -5, 0), scale: Vector3.create(1.4, 1.4, 1.4) })
+  Billboard.create(guide, { billboardMode: BillboardMode.BM_ALL })
+  guideBoard = engine.addEntity()
+  Transform.create(guideBoard, { parent: guide, position: Vector3.create(0, 0.62, 0.01), scale: Vector3.create(1, 0.3, 0.01) })
+  MeshRenderer.setBox(guideBoard)
+  Material.setBasicMaterial(guideBoard, { diffuseColor: Color4.create(0.965, 0.757, 0.467, 1) })
+  guideText = engine.addEntity()
+  Transform.create(guideText, { parent: guide, position: Vector3.create(0, 0.62, -0.02) })
+  TextShape.create(guideText, { text: '', fontSize: 2, textColor: Color4.create(0.17, 0.106, 0.24, 1), textAlign: TextAlignMode.TAM_MIDDLE_CENTER })
+  const tip = engine.addEntity()
+  Transform.create(tip, { parent: guide, position: Vector3.create(0, 0.2, 0), scale: Vector3.create(0.34, 0.4, 0.34) })
+  MeshRenderer.setCylinder(tip, 0, 0.5) // a cone, point down
+  Material.setBasicMaterial(tip, { diffuseColor: Color4.create(0.965, 0.757, 0.467, 1) })
   engine.addSystem(syncStations)
 }
 
-// scripts/station.js: show what lies on the station, run the bar
+let guide: Entity
+let guideBoard: Entity
+let guideText: Entity
+let guideAt: Station | null = null
+let guideSays = ''
+export function setGuide(id: string | null, text: string) {
+  const st = id ? STATIONS.find((s) => s.id === id) ?? null : null
+  if (st !== guideAt && !st) Transform.getMutable(guide).position = Vector3.create(0, -5, 0)
+  guideAt = st
+  if (st && text !== guideSays) {
+    guideSays = text
+    TextShape.getMutable(guideText).text = text
+    Transform.getMutable(guideBoard).scale = Vector3.create(text.length * 0.115 + 0.25, 0.3, 0.01)
+  }
+}
+// a crate answers a good grab: it bounces (maker.js crateHit)
+export function crateBounce(id: string) {
+  const b = built.find((x) => x.st.id === id)
+  if (b) b.hitAt = Date.now()
+}
+
+// scripts/station.js: show what lies on the station, run the bar; a working grinder or pump bobs on its feet
+// and plays its own motor loop
 function syncStations() {
+  const t = Date.now()
+  if (guideAt) Transform.getMutable(guide).position = sp(guideAt.x, 1.5 + Math.abs(Math.sin(t / 220)) * 0.25, guideAt.z)
   for (const b of built) {
+    if (b.hitAt) {
+      const k = (t - b.hitAt) / 180
+      const s = k >= 1 ? 1 : 1 - Math.sin(k * Math.PI) * 0.18
+      Transform.getMutable(b.root).scale = Vector3.create(1 + (1 - s) * 0.5, s, 1 + (1 - s) * 0.5)
+      if (k >= 1) b.hitAt = 0
+    }
+    if (b.st.kind === 'grinder' || b.st.kind === 'pump') {
+      const on = stationProg(b.st.id) > 0
+      if (on !== b.running) {
+        b.running = on
+        if (on) loop('motor-' + b.st.id, SND(b.st.kind === 'grinder' ? 'bench-grinder-motor-loop' : 'gas-pump-fuel-flow-loop'), { at: { x: b.st.x, y: 1, z: b.st.z }, volume: 1 })
+        else {
+          stopLoop('motor-' + b.st.id)
+          Transform.getMutable(b.root).scale = Vector3.One()
+        }
+      }
+      if (on) {
+        const w = Math.abs(Math.sin((t / 1000) * 9))
+        Transform.getMutable(b.root).scale = Vector3.create(1 + w * 0.03, 1 + w * 0.07, 1 + w * 0.03)
+      }
+    }
     if (b.st.kind !== 'supply') b.slot.show(stationItem(b.st.id) as Item | null)
     if (b.bg && b.fill) {
       const pct = Math.round(Math.min(1, Math.max(0, stationProg(b.st.id))) * 100)

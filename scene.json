@@ -2,8 +2,8 @@
   "ecs7": true,
   "runtimeVersion": "7",
   "display": {
-    "title": "Galpón de Utilería",
-    "description": "Taller de utilería de una película de terror: los monstruos hacen fila y vos armás sus props antes de que se cansen de esperar.",
+    "title": "The Set",
+    "description": "Horror-movie prop shop: slashers line up, you build their bloody props before the cameras roll.",
     "navmapThumbnail": "images/scene-thumbnail.png",
     "favicon": "favicon_asset"
   },
@@ -48,8 +48,8 @@
           0.2
         ],
         "z": [
-          21.5,
-          23
+          20.5,
+          22
         ]
       },
       "cameraTarget": {

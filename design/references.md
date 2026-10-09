@@ -10,3 +10,4 @@
 - The character archetypes reference well-known slasher films (ghost mask, hockey mask, leather mask, striped
   sweater and bladed glove). Whether that is acceptable for publishing has not been assessed.
 - Reused code patterns: `spawn-to-dcl` skill example `fuera-de-la-realidad` (`gfx.ts`, `audio.ts`, `net.ts`).
+- Added at seq 292: `sfx-buzz-short`, `sfx-plunk-short`, `sfx-bench-grinder-motor-loop`, `sfx-gas-pump-fuel-flow-loop` from Spawn's CDN (same unverified reuse terms). `sfx-item-pickup-pop.mp3` is synthesised locally (Spawn never generated it).

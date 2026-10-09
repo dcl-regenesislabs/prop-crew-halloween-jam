@@ -1,6 +1,6 @@
 # Port notes — Galpón de Utilería (Spawn → Decentraland), 2026-10-09
 
-Source: `https://www.spawn.co/@sebadl/galpon-de-utileria`, world `23bcd7c2cf6b42e5ad384d1d85186e02`, **seq 218**
+Source: `https://www.spawn.co/@sebadl/galpon-de-utileria`, world `23bcd7c2cf6b42e5ad384d1d85186e02`, **seq 224 at first port (written here as 218 by mistake), seq 292 since the update below**
 (commit `4e90c1b92e3c6b643de230f75063e5490d59b727`). The owner may keep editing; later changes are not in this port.
 Export lives in `../spawn/` (world-src: 56 files; assets: 67 files, none unresolved). Written by Claude.
 
@@ -118,6 +118,42 @@ Still different from Spawn, on purpose or by limit:
 
 Observation: twice, the first simulated E press after launching the client did nothing at the green door and
 the second worked. Not reproduced by hand; cause unknown (the ENTRAR button is the other way in).
+
+## Update to Spawn seq 292 (2026-10-09, by Claude)
+
+Correction: the export this port was first made from was **seq 224**, not 218 (the head moved between my lookup and
+my download; `spawn/head.json` had it right). That export is kept as `spawn/world-src-seq224`; `spawn/world-src`
+is now seq 292 (commit `91ebd95…`), so the next diff starts there. 16 of 56 Spawn files had changed.
+
+Applied:
+- Renamed **The Set** (`scene.json`, README). The HUD title stays GALPÓN DE UTILERÍA / THE PROP SHED, as in Spawn.
+- **One key:** E pressed does everything, E **held** sharpens and fuels. F is unused. Throw stays on key 1.
+- **No jumping** (`InputModifier` `disableJump`).
+- **Shed one tile deeper** (walls z ±4.05, rows z ±3.4), seals, locked door, customer spots moved with it.
+  The doors of the merged lot stand on the new front wall (Spawn's lobby keeps its old closed shed).
+- **New station layout**, 24 stations with the new bench `ctr-9`; every base far from its parts.
+- **Fixed camera** (no follow), distance fitted to the shed's width. Hanging lamp shades removed, lights kept.
+- **Orders:** no fixed teaching customers; never the same prop twice running.
+- **First-order guide:** an amber label and bouncing arrow over the station needed next, until the shift's first
+  delivery (`nextStep` in `src/shop.ts`, drawn in `src/shed.ts`).
+- **Feedback:** crates bounce and pop "+Name" on a good grab; grinder and pump bob and play a motor loop while
+  their bar fills.
+- **Sounds:** Spawn's new buzz, plunk and two motor loops. `sfx-item-pickup-pop` was never generated on Spawn
+  (it plays silence there); here it is a synthesised stand-in.
+- **HUD:** ES/EN toggle in the shed's top bar; "mantené E…" prompts and tips; Spawn's own English wording for
+  prompts, tips and hints; hints are bilingual.
+
+Checked: build clean; logic test (24 stations, order rule, the guide walks every recipe to the window, 300 shifts);
+headless self-played shift (3 served, switch off again); Godot Explorer pass with screenshots `v292-*.jpg`:
+deeper shed framed whole, layout, crate grab, hold-E at grinder and pump with bars, guide arrow through a knife
+order and gone after the first delivery, toggle in the bar, jump key does nothing.
+
+Differences and loose ends:
+- The guide label is 3D text on a billboard, not a HUD overlay; near the screen edges it looks tilted.
+- During a shift the top bar sits left of the tickets instead of centred, so two tickets never cover it; in the
+  preview client its left end is under the debug buttons (those are not in the published client).
+- Crate dust and flash particles are not ported (as before).
+- Not seen: the "+Name" pop in a screenshot; English in the shed; the bob of a working machine as motion.
 
 ## Not verified
 

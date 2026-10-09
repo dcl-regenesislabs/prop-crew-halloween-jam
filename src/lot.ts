@@ -139,8 +139,9 @@ function pick() {
     const d = 6 + Math.random() * 14
     const x = Math.cos(a) * d
     const z = Math.sin(a) * d
-    if (Math.abs(x) < 7.4 && Math.abs(z) < 4.4) continue // not into the shed
-    if (Math.abs(x) < 4.2 && z > 3 && z < 9) continue // keep the doors clear
+    if (Math.abs(x) < 7.4 && Math.abs(z) < 5.6) continue // not into the shed (one tile deeper since seq 292)
+    if (Math.abs(x) < 4.2 && z > 4 && z < 10.5) continue // keep the doors clear
+    if (x > 2 && z < -4 && z > -10) continue // nor onto the customers' strip behind the shed
     if (ORIGIN.x + x < 2 || ORIGIN.x + x > SCENE.w - 2 || ORIGIN.z - z < 2 || ORIGIN.z - z > SCENE.d - 2) continue // stay on the parcels
     return { x, z }
   }
@@ -148,7 +149,7 @@ function pick() {
 }
 // Spawn walks them along a navmesh path; here it is a straight line that refuses to cross the shed
 const crossesShed = (ax: number, az: number, bx: number, bz: number) => {
-  for (let t = 0; t <= 1; t += 0.05) if (insideShed(ax + (bx - ax) * t, az + (bz - az) * t) || (Math.abs(ax + (bx - ax) * t) < 7.4 && Math.abs(az + (bz - az) * t) < 4.4)) return true
+  for (let t = 0; t <= 1; t += 0.05) if (insideShed(ax + (bx - ax) * t, az + (bz - az) * t) || (Math.abs(ax + (bx - ax) * t) < 7.4 && Math.abs(az + (bz - az) * t) < 5.6)) return true
   return false
 }
 function wander(dt: number) {

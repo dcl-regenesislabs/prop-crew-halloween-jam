@@ -8,23 +8,23 @@ export type StationKind = 'supply' | 'counter' | 'window' | 'grinder' | 'pump' |
 export type Station = { id: string; kind: StationKind; x: number; z: number; yaw: number }
 
 const XS = [-5.4, -4.2, -3.0, -1.8, -0.6, 0.6, 1.8, 3.0, 4.2, 5.4]
-const ZS = [-1.2, 0, 1.2]
-const ZB = -2.2 // the back row
-const ZF = 2.2 // the front row
+const ZB = -3.4 // the back row (@sebadl: one tile deeper each way)
+const ZF = 3.4 // the front row
 export const STATIONS: Station[] = []
 const kindOf = (id: string): StationKind =>
   /^(rack|bin)-/.test(id) ? 'supply' : id.startsWith('ctr') ? 'counter' : id.startsWith('win') ? 'window' : (id.replace(/-\d+$/, '') as StationKind)
 const add = (id: string, x: number, z: number, yaw: number) => STATIONS.push({ id, kind: kindOf(id), x, z, yaw })
-// back row: the two customer windows in the middle (customers stand outside, facing the camera), racks either side
-;[null, 'ctr-1', 'rack-knife', 'rack-machete', 'win-1', 'win-2', 'rack-saw', 'rack-torch', 'rack-walkie', 'ctr-2'].forEach(
-  (id, i) => id && add(id, XS[i], ZB, 180)
+// back row: the two customer windows in the middle (customers stand outside, facing the camera), racks either
+// side, a spare bench in each corner. Every base is far from its parts (@sebadl)
+;['ctr-1', 'rack-glove', 'rack-knife', 'rack-walkie', 'win-1', 'win-2', 'rack-saw', 'rack-torch', 'rack-machete', 'ctr-2'].forEach((id, i) =>
+  add(id, XS[i], ZB, 180)
 )
-// left wall: the parts crates
-;['bin-chain', 'bin-bulb', 'bin-battery'].forEach((id, i) => add(id, -5.4, ZS[i], -90))
-// right wall: gloves, the blood bucket, the trash
-;['rack-glove', 'bucket-1', 'trash'].forEach((id, i) => add(id, 5.75, ZS[i], 90))
-// front row (nearest the camera): benches, the grinder, the gas pump and two crates; the corner past x 4.8 is the door
-;['ctr-5', 'ctr-6', 'grinder-1', 'ctr-7', 'pump-1', 'ctr-8', 'bin-antenna', 'bin-blades'].forEach((id, i) => add(id, XS[i], ZF, 0))
+// left wall: the parts crates, spread out
+;['bin-chain', 'bin-bulb', 'bin-battery'].forEach((id, i) => add(id, -5.4, [-1.5, 0, 1.5][i], -90))
+// right wall: antennas and claws
+;['bin-antenna', 'bin-blades'].forEach((id, i) => add(id, 5.75, [-0.75, 0.75][i], 90))
+// front row (nearest the camera): benches, the grinder, the gas pump, the blood bucket, the trash beside the door
+;['ctr-5', 'ctr-6', 'grinder-1', 'ctr-7', 'pump-1', 'ctr-8', 'bucket-1', 'ctr-9', 'trash'].forEach((id, i) => add(id, XS[i], ZF, 0))
 
 export const BY_ID: Record<string, Station> = {}
 for (const s of STATIONS) BY_ID[s.id] = s
@@ -79,11 +79,31 @@ export const stationUnder = (x: number, z: number) =>
     return Math.abs(s.x - x) < (side ? 0.42 : 0.6) && Math.abs(s.z - z) < (side ? 0.6 : 0.42)
   }) ?? null
 
-// customers walk the strip behind the shed's back wall (z -2.85) and stand at their window facing in, toward the camera
-export const WINDOW_SPOT = (id: string) => ({ x: BY_ID[id].x, z: -3.4 })
-export const LINE_SPOT = (i: number) => ({ x: 4.2 + i * 1.1, z: -4.8 })
-export const ENTRY = { x: 14, z: -6.5 }
-export const EXIT = { x: 14, z: -8 }
+// customers walk the strip behind the shed's back wall (z -4.05) and stand at their window facing in, toward the camera
+export const WINDOW_SPOT = (id: string) => ({ x: BY_ID[id].x, z: -4.6 })
+export const LINE_SPOT = (i: number) => ({ x: 4.2 + i * 1.1, z: -6.0 })
+export const ENTRY = { x: 14, z: -7.7 }
+export const EXIT = { x: 14, z: -9.2 }
+
+// The first-order guide (ui.js nextStep): the one station the maker needs next for the most urgent order, and
+// what to do there. es/en are the short lines Spawn shows over the bouncing arrow.
+const supplyOf = (k: string) => STATIONS.find((s) => s.kind === 'supply' && GIVES(s.id) === k)?.id ?? null
+export function nextStep(orders: Record<string, { dish: DishId; until: number }>, h: Item | null, names: (k: string, en: boolean) => string): { id: string; es: string; en: string } | null {
+  const ords = Object.entries(orders).sort((a, b) => a[1].until - b[1].until)
+  if (!ords.length) return null
+  const [win, o] = ords[0]
+  const R = S.dishes[o.dish]
+  if (!R) return null
+  const at = (id: string | null, es: string, en: string) => (id ? { id, es, en } : null)
+  if (h && h.k !== R.base) return at('trash', 'tirá eso al tacho', 'toss that in the trash')
+  if (!h) return at(supplyOf(R.base), 'agarrá: ' + names(R.base, false), 'grab: ' + names(R.base, true))
+  const part = R.parts.find((p) => !(h.p ?? []).includes(p))
+  if (part) return at(supplyOf(part), 'sumale: ' + names(part, false), 'add: ' + names(part, true))
+  if (R.sharp && !h.s) return at('grinder-1', 'mantené E para afilar', 'hold E to sharpen')
+  if (R.blood && !h.b) return at('bucket-1', 'mojalo en la sangre', 'dip it in the blood')
+  if (R.gas && !h.g) return at('pump-1', 'mantené E para cargar nafta', 'hold E to fuel up')
+  return at(win, '¡entregalo acá!', 'hand it over here!')
+}
 
 export const itemKey = (it: Item | null) => (it ? JSON.stringify([it.k, [...(it.p ?? [])].sort(), it.s ? 1 : 0, it.b ? 1 : 0, it.g ? 1 : 0]) : '')
 export const packItem = (it: Item | null) => (it ? JSON.stringify(it) : '')

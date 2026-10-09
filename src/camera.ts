@@ -1,5 +1,5 @@
-// The shed camera: high over the front, looking down into the workshop. Wide screens see the whole shed;
-// a phone held upright gets a closer, wider lens that follows the maker side to side.
+// The shed camera: fixed high over the front, the whole shed centred across the screen (@sebadl: no follow).
+// The distance grows until the shed's full width fits the screen, so a phone held upright still sees wall to wall.
 // Ported from scripts/camera.js. Spawn moves its own camera; a scene cannot, so a VirtualCamera stands where
 // Spawn's would and becomes the main camera while the maker is inside. On the lot the client's own
 // third-person camera takes over (Spawn's free orbit, scripts/camera-free.js).
@@ -11,6 +11,7 @@ import { UI } from './state'
 
 const PITCH = -0.98
 const RATE = 6
+const HALF_W = 6.7
 let cam: Entity
 let active = false
 let px: number | null = null
@@ -19,7 +20,7 @@ let fov = 45
 
 export function initCamera() {
   cam = engine.addEntity()
-  const from = sp(0, 10.35, 6.1)
+  const from = sp(0, 12, 7.2)
   Transform.create(cam, { position: from, rotation: Quaternion.fromLookAt(from, sp(0, 0.8, -0.3)) })
   VirtualCamera.create(cam, { defaultTransition: { transitionMode: VirtualCamera.Transition.Time(0.6) }, fov })
   engine.addSystem(update)
@@ -44,15 +45,16 @@ function update(dt: number) {
   const canvas = UiCanvasInformation.getOrNull(engine.RootEntity)
   const aspect = canvas && canvas.height > 0 ? canvas.width / canvas.height : 1.7
   const tall = aspect < 1
-  const dist = tall ? 15.5 : aspect < 1.4 ? 13 : 11.5
   const wantFov = tall ? 62 : 45
+  const hfov = 2 * Math.atan(Math.tan((wantFov * Math.PI) / 360) * aspect)
+  const dist = Math.max(aspect < 1.4 ? 15 : 13.5, HALF_W / Math.tan(hfov / 2))
   if (wantFov !== fov) {
     fov = wantFov
     VirtualCamera.getMutable(cam).fov = fov
   }
   const inside = insideShed(fx, fz)
-  const gx = !inside ? fx : tall ? Math.max(-3.4, Math.min(3.4, fx)) : Math.max(-1.8, Math.min(1.8, fx * 0.4))
-  const gz = !inside ? fz : tall ? Math.max(-1.6, Math.min(0.2, fz * 0.4 - 0.9)) : Math.max(-0.4, Math.min(0.6, fz * 0.2)) - 0.3
+  const gx = inside ? 0 : fx
+  const gz = inside ? -0.3 : fz
   const k = 1 - Math.exp(-RATE * dt)
   px = px === null ? gx : px + (gx - px) * k
   pz = pz === null ? gz : pz + (gz - pz) * k

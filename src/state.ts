@@ -11,6 +11,7 @@ export const UI = {
   workVerb: 'AFILAR',
   canThrow: false,
   hint: '',
+  hintEn: '',
   hintAt: 0,
   guide: null as boolean | null, // null: never opened or closed yet, so it opens by itself on the first visit
   guideSeen: false,
@@ -23,7 +24,8 @@ export const UI = {
   wantExit: false
 }
 
-export function hint(text: string) {
+export function hint(text: string, en?: string) {
   UI.hint = text
+  UI.hintEn = en ?? text
   UI.hintAt = Date.now()
 }
