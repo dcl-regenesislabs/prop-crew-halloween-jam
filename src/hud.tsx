@@ -195,7 +195,7 @@ function Waking() {
   return (
     <UiEntity uiTransform={{ positionType: 'absolute', position: { top: 250, left: 0 }, width: '100%', height: 70, justifyContent: 'center' }}>
       <UiEntity uiTransform={{ width: 620, height: 70, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: ORANGE, borderRadius: 14 }} uiBackground={{ color: hex('#1a1020', 0.94) }}>
-        <Txt v={en ? 'Waking up the set… one moment' : 'Despertando el set… un momento'} size={26} w={600} h={50} />
+        <Txt v={en ? 'Preparing set…' : 'Preparando el set…'} size={26} w={600} h={50} />
       </UiEntity>
     </UiEntity>
   )
