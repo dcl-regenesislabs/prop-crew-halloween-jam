@@ -1,6 +1,7 @@
 // The prop shed's layout and its rules, shared by the maker (player), the referee and the HUD.
 // Ported from scripts/lib/shop.js. Pure logic: no engine imports, so the Node tests can load it.
 import { DishId, S } from './config'
+import { UI } from './state'
 
 // one thing in the hands: k kind, p parts added, s sharpened, b bloodied, g fuelled
 export type Item = { k: string; p?: string[]; s?: number; b?: number; g?: number }
@@ -107,9 +108,9 @@ export function nextStep(orders: Record<string, { dish: DishId; until: number }>
   if (!h) return at(supplyOf(R.base), 'agarrá: ' + names(R.base, false), 'grab: ' + names(R.base, true))
   const part = R.parts.find((p) => !(h.p ?? []).includes(p))
   if (part) return at(supplyOf(part), 'sumale: ' + names(part, false), 'add: ' + names(part, true))
-  if (R.sharp && !h.s) return at('grinder-1', 'mantené E para afilar', 'hold E to sharpen')
+  if (R.sharp && !h.s) return at('grinder-1', UI.mobile ? 'mantené para afilar' : 'mantené E para afilar', UI.mobile ? 'hold to sharpen' : 'hold E to sharpen')
   if (R.blood && !h.b) return at('bucket-1', 'mojalo en la sangre', 'dip it in the blood')
-  if (R.gas && !h.g) return at('pump-1', 'mantené E para cargar nafta', 'hold E to fuel up')
+  if (R.gas && !h.g) return at('pump-1', UI.mobile ? 'mantené para cargar nafta' : 'mantené E para cargar nafta', UI.mobile ? 'hold to fuel up' : 'hold E to fuel up')
   return at(win, '¡entregalo acá!', 'hand it over here!')
 }
 

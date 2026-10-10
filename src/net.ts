@@ -109,6 +109,8 @@ export const sendUse = (station: string) => canSend() && room.send('use', { stat
 export const sendWork = (station: string, on: boolean) => canSend() && room.send('work', { station, on })
 export const sendPick = (id: string) => canSend() && room.send('pick', { id })
 export const sendDrop = (x: number, z: number, yaw: number, station: string) => canSend() && room.send('drop', { x, z, yaw, station })
-export const sendStart = () => canSend() && room.send('start', {})
-export const sendEnter = () => canSend() && room.send('enter', {})
-export const sendLeave = () => canSend() && room.send('leave', {})
+// one-shot taps (¡ACCIÓN!, the door): never gate behind canSend — room.send() already queues while not yet
+// synced and flushes on its own once the connection is back, so a tap made right as the sync blips is not lost
+export const sendStart = () => room.send('start', {})
+export const sendEnter = () => room.send('enter', {})
+export const sendLeave = () => room.send('leave', {})

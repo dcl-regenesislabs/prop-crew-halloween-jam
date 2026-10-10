@@ -4,7 +4,7 @@
   "display": {
     "title": "The Set",
     "description": "Horror-movie prop shop: slashers line up, you build their bloody props before the cameras roll.",
-    "navmapThumbnail": "images/scene-thumbnail.jpg",
+    "navmapThumbnail": "images/scene-thumbnail.png",
     "favicon": "favicon_asset"
   },
   "owner": "",
@@ -61,7 +61,8 @@
   ],
   "featureToggles": {
     "voiceChat": "enabled",
-    "portableExperiences": "disabled"
+    "portableExperiences": "disabled",
+    "nearbyVoiceChat": "enabled"
   },
   "requiredPermissions": [
     "ALLOW_TO_MOVE_PLAYER_INSIDE_SCENE"
@@ -73,5 +74,10 @@
   "worldConfiguration": {
     "name": "mobile2.dcl.eth"
   },
-  "authoritativeMultiplayer": true
+  "authoritativeMultiplayer": true,
+  "creator": "",
+  "source": {
+    "origin": "creator-hub",
+    "projectId": "5068d2a6-688b-4710-8e1d-59a13b6cc2bc"
+  }
 }

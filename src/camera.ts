@@ -10,10 +10,16 @@ import { roomY, sp } from './gfx'
 import { UI } from './state'
 
 // Spawn looks down at 56 degrees (pitch -0.98). Playtest: "no verlo tan desde arriba y acercarla": 42 degrees.
-const PITCH = -0.74
+// Desktop keeps that original tuning (looked right there); mobile got its own pass afterwards (closer, steeper,
+// pushed further over the shed) to fix the dead space seen on a Samsung S25.
+const PITCH_DESKTOP = -0.74
+const PITCH_MOBILE = -0.95
 const RATE = 6
 const HALF_W = 6.7
-const CLOSE = 9.8
+const CLOSE_DESKTOP = 9.8
+const CLOSE_MOBILE = 8.5
+const GZ_DESKTOP = 1.2
+const GZ_MOBILE = -0.3
 let cam: Entity
 let active = false
 let px: number | null = null
@@ -42,6 +48,9 @@ function update(dt: number) {
   if (!active) return
   const t = Transform.getOrNull(engine.PlayerEntity)
   if (!t) return
+  const mobile = UI.mobile
+  const PITCH = mobile ? PITCH_MOBILE : PITCH_DESKTOP
+  const CLOSE = mobile ? CLOSE_MOBILE : CLOSE_DESKTOP
   const fx = t.position.x - ORIGIN.x
   const fz = ORIGIN.z - t.position.z
   const canvas = UiCanvasInformation.getOrNull(engine.RootEntity)
@@ -58,7 +67,7 @@ function update(dt: number) {
   }
   const inside = insideShed(fx, fz)
   const gx = inside ? 0 : fx
-  const gz = inside ? 1.2 : fz // aimed a little in front of the middle, so the front row clears the bottom HUD
+  const gz = inside ? (mobile ? GZ_MOBILE : GZ_DESKTOP) : fz // aimed a little in front of the middle, so the front row clears the bottom HUD
   const k = 1 - Math.exp(-RATE * dt)
   px = px === null ? gx : px + (gx - px) * k
   pz = pz === null ? gz : pz + (gz - pz) * k

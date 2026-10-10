@@ -51,9 +51,12 @@ function itemName(it: Item | null) {
   if (it.g) adds.push(EN() ? 'fuelled' : 'con nafta')
   return adds.length ? nameOf(it.k) + ' + ' + adds.join(' + ') : nameOf(it.k)
 }
+// desktop has no on-screen button to point at, so it still needs the key named; mobile only has the main button
+const K = (s: string) => (UI.mobile ? s : 'E ' + s)
+const KHold = (en: boolean, s: string) => (UI.mobile ? (en ? 'hold ' : 'mantené ') + s : (en ? 'hold E ' : 'mantené E ') + s)
 function prompt(): string {
   // a prop on the floor ahead: take it, or join it with what you hold
-  if (UI.floorVerb) return EN() ? (UI.floorVerb === 'UNIR' ? 'E join' : 'E take') : UI.floorVerb === 'UNIR' ? 'E unir' : 'E tomar'
+  if (UI.floorVerb) return EN() ? K(UI.floorVerb === 'UNIR' ? 'join' : 'take') : K(UI.floorVerb === 'UNIR' ? 'unir' : 'tomar')
   const st = UI.look ? BY_ID[UI.look] : null
   if (!st) return ''
   const h = UI.held
@@ -62,20 +65,20 @@ function prompt(): string {
   switch (st.kind) {
     case 'supply': {
       const g = { k: GIVES(st.id) as string }
-      return !h ? (en ? 'E take ' : 'E tomar ') + nameOf(g.k) : canAdd(h, g) ? (en ? 'E add ' : 'E poner ') + nameOf(g.k) : ''
+      return !h ? K(en ? 'take ' : 'tomar ') + nameOf(g.k) : canAdd(h, g) ? K(en ? 'add ' : 'poner ') + nameOf(g.k) : ''
     }
     case 'grinder':
-      return sharpenable(h) ? (en ? 'hold E to sharpen' : 'mantené E para afilar') : !h && it ? (en ? 'E take' : 'E tomar') : ''
+      return sharpenable(h) ? KHold(en, en ? 'to sharpen' : 'para afilar') : !h && it ? K(en ? 'take' : 'tomar') : ''
     case 'pump':
-      return h?.k === 'saw' && !h.g ? (en ? 'hold E to fuel up' : 'mantené E para cargar nafta') : !h && it ? (en ? 'E take' : 'E tomar') : ''
+      return h?.k === 'saw' && !h.g ? KHold(en, en ? 'to fuel up' : 'para cargar nafta') : !h && it ? K(en ? 'take' : 'tomar') : ''
     case 'counter':
-      return h && !it ? (en ? 'E set down' : 'E apoyar') : !h && it ? (en ? 'E take' : 'E tomar') : h && it ? (en ? 'E combine' : 'E combinar') : ''
+      return h && !it ? K(en ? 'set down' : 'apoyar') : !h && it ? K(en ? 'take' : 'tomar') : h && it ? K(en ? 'combine' : 'combinar') : ''
     case 'bucket':
-      return dippable(h) ? (en ? 'E dip in fake blood' : 'E mojar en sangre falsa') : ''
+      return dippable(h) ? K(en ? 'dip in fake blood' : 'mojar en sangre falsa') : ''
     case 'trash':
-      return h ? (en ? 'E toss ' : 'E tirar ') + nameOf(h.k) : ''
+      return h ? K(en ? 'toss ' : 'tirar ') + nameOf(h.k) : ''
     case 'window':
-      return shift().orders[st.id] && h ? (en ? 'E hand over' : 'E entregar') : ''
+      return shift().orders[st.id] && h ? K(en ? 'hand over' : 'entregar') : ''
   }
   return ''
 }
@@ -85,15 +88,46 @@ function tip(): { k: string; n: string; d: string } | null {
   if (!st) return null
   const h = UI.held
   const en = EN()
+  const mobile = UI.mobile
   switch (st.kind) {
     case 'grinder':
-      return { k: 'grinder', n: en ? 'Grinder' : 'Amoladora', d: h?.s ? (en ? 'already sharp' : 'ya está afilado') : en ? 'bring a knife, machete or blades and hold E' : 'traé un cuchillo, machete o cuchillas y mantené E' }
+      return {
+        k: 'grinder',
+        n: en ? 'Grinder' : 'Amoladora',
+        d: h?.s
+          ? en
+            ? 'already sharp'
+            : 'ya está afilado'
+          : en
+            ? 'bring a knife, machete or blades and hold' + (mobile ? '' : ' E')
+            : 'traé un cuchillo, machete o cuchillas y mantené' + (mobile ? '' : ' E')
+      }
     case 'pump':
-      return { k: 'gas', n: en ? 'Gas pump' : 'Surtidor de nafta', d: h?.k === 'saw' && h.g ? (en ? 'already fuelled' : 'ya tiene nafta') : en ? 'bring the chainsaw and hold E' : 'traé la motosierra y mantené E' }
+      return {
+        k: 'gas',
+        n: en ? 'Gas pump' : 'Surtidor de nafta',
+        d: h?.k === 'saw' && h.g
+          ? en
+            ? 'already fuelled'
+            : 'ya tiene nafta'
+          : en
+            ? 'bring the chainsaw and hold' + (mobile ? '' : ' E')
+            : 'traé la motosierra y mantené' + (mobile ? '' : ' E')
+      }
     case 'trash':
-      return { k: 'tacho', n: en ? 'Trash' : 'Tacho', d: en ? 'holding something, E tosses it' : 'con algo en la mano, E lo tira' }
+      return { k: 'tacho', n: en ? 'Trash' : 'Tacho', d: en ? (mobile ? 'holding something tosses it' : 'holding something, E tosses it') : mobile ? 'con algo en la mano, lo tira' : 'con algo en la mano, E lo tira' }
     case 'bucket':
-      return { k: 'paint', n: en ? 'Fake blood bucket' : 'Balde de sangre falsa', d: h?.b ? (en ? 'already bloody' : 'ya está ensangrentado') : en ? 'bring a sharpened knife or machete and E' : 'traé un cuchillo o machete afilado y E' }
+      return {
+        k: 'paint',
+        n: en ? 'Fake blood bucket' : 'Balde de sangre falsa',
+        d: h?.b
+          ? en
+            ? 'already bloody'
+            : 'ya está ensangrentado'
+          : en
+            ? 'bring a sharpened knife or machete' + (mobile ? '' : ' and E')
+            : 'traé un cuchillo o machete afilado' + (mobile ? '' : ' y E')
+      }
   }
   return null
 }
@@ -300,7 +334,6 @@ function Shed(z: ZoneId) {
   const h = UI.held
   const heldIcon = h ? (h.k === 'saw' ? 'chainsaw' : h.k === 'torch' ? 'flashlight' : h.k) : ''
   const heldText = itemName(h)
-  const throwText = en ? ' · 1 drop' : ' · 1 soltar'
   const wrap = !P.on && P.last && t - P.endsAt < 12000 ? P.last : null
   return (
     <UiEntity uiTransform={{ width: '100%', height: '100%', positionType: 'absolute' }}>
@@ -326,30 +359,36 @@ function Shed(z: ZoneId) {
         {orders.map((o, i) => Ticket(o, 't' + i))}
       </UiEntity>
 
-      {/* .hand: the hint, what the key does now (or what the station wants), what is in your hands */}
-      <UiEntity uiTransform={{ display: z === 'centre' ? 'flex' : 'none', positionType: 'absolute', position: { bottom: P.on || guideOpen ? 14 : 100, left: 0 }, width: '100%', height: 190, flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center' }}>
+      {/* .prompt: what the main button does right now, flush to the right edge, parked above the native touch button's
+          footprint — the client always draws that button over scene UI there, so this sits clear of it, not on top */}
+      {p && z === 'area' ? (
+        <UiEntity uiTransform={{ positionType: 'absolute', position: { bottom: 228, right: 0 }, width: wide(p, 26) + 36, height: 46, justifyContent: 'center', alignItems: 'center', borderRadius: 12 }} uiBackground={{ color: AMBER }}>
+          <Txt v={p} size={26} w={wide(p, 26) + 30} h={40} color={INK} />
+        </UiEntity>
+      ) : null}
+
+      {/* .held: what is in your hands, stacked right above .prompt */}
+      {h && z === 'area' ? (
+        <UiEntity uiTransform={{ positionType: 'absolute', position: { bottom: 284, right: 0 }, width: wide(heldText, 22) + 80, height: 48, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: EDGE, borderRadius: 14 }} uiBackground={{ color: PANEL }}>
+          {icon(heldIcon, 34)}
+          <Txt v={heldText} size={22} w={wide(heldText, 22) + 12} h={40} />
+        </UiEntity>
+      ) : null}
+
+      {/* .tip: the looked-at station's own description when there is nothing to do there yet, stacked above .held */}
+      {tt && z === 'area' ? (
+        <UiEntity uiTransform={{ positionType: 'absolute', position: { bottom: 342, right: 0 }, width: Math.max(wide(tt.d, 20), wide(tt.n, 22)) + 90, height: 70, padding: { left: 12, right: 12 }, alignItems: 'center', borderWidth: 3, borderColor: EDGE, borderRadius: 14 }} uiBackground={{ color: PANEL }}>
+          {icon(tt.k, 46)}
+          <UiEntity uiTransform={{ flexDirection: 'column', margin: { left: 10 } }}>
+            <Txt v={'<b>' + tt.n + '</b>'} size={22} w={Math.max(wide(tt.d, 20), wide(tt.n, 22))} h={28} color={AMBER} align="middle-left" />
+            <Txt v={tt.d} size={20} w={Math.max(wide(tt.d, 20), wide(tt.n, 22))} h={26} align="middle-left" />
+          </UiEntity>
+        </UiEntity>
+      ) : null}
+
+      {/* .hand: the transient hint toast only; the station tip and held-item cards moved to .tip / .held, over the right margin */}
+      <UiEntity uiTransform={{ display: z === 'centre' ? 'flex' : 'none', positionType: 'absolute', position: { bottom: P.on || guideOpen ? 14 : 100, left: 0 }, width: '100%', height: 40, justifyContent: 'flex-end', alignItems: 'center' }}>
         {hint ? <Txt v={hint} size={24} w={900} h={34} color={SALMON} /> : null}
-        {p ? (
-          <UiEntity uiTransform={{ width: wide(p, 26) + 36, height: 46, margin: 3, justifyContent: 'center', alignItems: 'center', borderRadius: 12 }} uiBackground={{ color: AMBER }}>
-            <Txt v={p} size={26} w={wide(p, 26) + 30} h={40} color={INK} />
-          </UiEntity>
-        ) : null}
-        {tt ? (
-          <UiEntity uiTransform={{ width: Math.max(wide(tt.d, 20), wide(tt.n, 22)) + 90, height: 70, margin: 3, padding: { left: 12, right: 12 }, alignItems: 'center', borderWidth: 3, borderColor: EDGE, borderRadius: 14 }} uiBackground={{ color: PANEL }}>
-            {icon(tt.k, 46)}
-            <UiEntity uiTransform={{ flexDirection: 'column', margin: { left: 10 } }}>
-              <Txt v={'<b>' + tt.n + '</b>'} size={22} w={Math.max(wide(tt.d, 20), wide(tt.n, 22))} h={28} color={AMBER} align="middle-left" />
-              <Txt v={tt.d} size={20} w={Math.max(wide(tt.d, 20), wide(tt.n, 22))} h={26} align="middle-left" />
-            </UiEntity>
-          </UiEntity>
-        ) : null}
-        {h ? (
-          <UiEntity uiTransform={{ width: wide(heldText + throwText, 22) + 80, height: 48, margin: 3, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: EDGE, borderRadius: 14 }} uiBackground={{ color: PANEL }}>
-            {icon(heldIcon, 34)}
-            <Txt v={heldText} size={22} w={wide(heldText, 22) + 12} h={40} />
-            <Txt v={throwText} size={19} w={wide(throwText, 19)} h={40} color={hex('#f6e3c4', 0.65)} />
-          </UiEntity>
-        ) : null}
       </UiEntity>
 
       {/* .wrap: ¡CORTEN! for a few seconds after the whistle */}
@@ -357,7 +396,10 @@ function Shed(z: ZoneId) {
       {wrap && !guideOpen && z === 'centre' ? (
         <UiEntity uiTransform={{ positionType: 'absolute', width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
           <UiEntity uiTransform={{ width: 760, height: 290, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: ORANGE, borderRadius: 20 }} uiBackground={{ color: hex('#1a1020', 0.94) }}>
-            <Txt v={'<b>' + (en ? 'CUT!' : '¡CORTEN!') + '</b>'} size={54} w={740} h={70} />
+            <UiEntity uiTransform={{ width: 740, height: 70, justifyContent: 'center', alignItems: 'center' }}>
+              {icon('clapper', 50)}
+              <Txt v={'<b>' + (en ? 'CUT!' : '¡CORTEN!') + '</b>'} size={54} w={500} h={70} />
+            </UiEntity>
             <Txt v={'★ '.repeat(wrap.stars) + '☆ '.repeat(3 - wrap.stars)} size={56} w={740} h={74} color={AMBER} />
             <Txt v={'$ ' + wrap.score + ' · ' + wrap.served + (en ? ' delivered · ' : ' entregados · ') + wrap.missed + (en ? ' walked out' : ' se fueron')} size={32} w={740} h={48} />
             <Txt v={en ? 'tap ACTION! for another take' : 'tocá ¡ACCIÓN! para otra toma'} size={22} w={740} h={40} color={hex('#f6e3c4', 0.8)} />
@@ -368,7 +410,14 @@ function Shed(z: ZoneId) {
       {/* .action: between takes, drawn over the ¡CORTEN! card's dimmer like Spawn's z-index */}
       {!P.on && !guideOpen && z === 'centre' ? (
         <UiEntity uiTransform={{ positionType: 'absolute', position: { bottom: 14, left: 0 }, width: '100%', height: 78, justifyContent: 'center' }}>
-          <Btn v={'<b>' + (en ? 'ACTION!' : '¡ACCIÓN!') + '</b>'} w={300} h={78} size={38} bg={RED} fg={CREAM} edge={AMBER} edgeW={5} radius={22} onPress={() => (UI.wantStart = true)} />
+          <UiEntity
+            uiTransform={{ width: 320, height: 78, justifyContent: 'center', alignItems: 'center', borderWidth: 5, borderColor: AMBER, borderRadius: 22 }}
+            uiBackground={{ color: RED }}
+            onMouseDown={() => (UI.wantStart = true)}
+          >
+            {icon('clapper', 44)}
+            <Txt v={'<b>' + (en ? 'ACTION!' : '¡ACCIÓN!') + '</b>'} size={38} w={240} h={78} color={CREAM} />
+          </UiEntity>
         </UiEntity>
       ) : null}
 
