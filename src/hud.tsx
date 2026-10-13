@@ -436,7 +436,16 @@ function Shed(z: ZoneId) {
         </UiEntity>
       ) : null}
 
-      {guideOpen && z === 'guide-dim' ? <UiEntity uiTransform={{ positionType: 'absolute', width: '100%', height: '100%' }} uiBackground={{ color: hex('#000000', 0.7) }} /> : null}
+      {guideOpen && z === 'guide-dim' ? (
+        <UiEntity
+          uiTransform={{ positionType: 'absolute', width: '100%', height: '100%' }}
+          uiBackground={{ color: hex('#000000', 0.7) }}
+          onMouseDown={() => {
+            UI.guide = false
+            UI.guideSeen = true
+          }}
+        />
+      ) : null}
       {guideOpen && z === 'guide' ? Guide() : null}
     </UiEntity>
   )
@@ -484,11 +493,12 @@ function Guide() {
           </UiEntity>
         </UiEntity>
         <UiEntity uiTransform={{ width: 1292, height: 3 }} uiBackground={{ color: EDGE }} />
-        {/* .gf: playtest feedback — this close button was hard to tap, made it as big as the card allows */}
-        <UiEntity uiTransform={{ width: 1292, height: 102, alignItems: 'center', justifyContent: 'flex-end', padding: { left: 26, right: 14 } }}>
+        {/* .gf: playtest feedback — still hard to tap; the row had no other content to share it with (the old
+          hint text here is gone), so the button now fills the whole free width instead of hugging the right */}
+        <UiEntity uiTransform={{ width: 1292, height: 102, alignItems: 'center', justifyContent: 'center', padding: { left: 26, right: 14 } }}>
           <Btn
             v={'<b>' + G.close + '</b>'}
-            w={320}
+            w={1252}
             h={94}
             size={34}
             bg={ORANGE}
