@@ -337,21 +337,34 @@ function Shed(z: ZoneId) {
   const wrap = !P.on && P.last && t - P.endsAt < 12000 ? P.last : null
   return (
     <UiEntity uiTransform={{ width: '100%', height: '100%', positionType: 'absolute' }}>
-      {/* .top: REC clock and the take (or the record between takes), the guide, the music, the way out */}
+      {/* .top: REC clock and the take (or the record between takes), the guide, the music, the way out. Spaced an
+          extra 56px apart (the "?" button's own size) per playtest feedback: too easy to mistap a neighbour. */}
       <UiEntity uiTransform={{ display: z === 'centre' ? 'flex' : 'none', positionType: 'absolute', position: { top: 12, left: 0 }, width: '100%', height: 60, justifyContent: 'center', alignItems: 'center' }}>
         {P.on ? (
-          <UiEntity uiTransform={{ width: 196, height: 46, margin: { left: 5, right: 5 }, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: EDGE, borderRadius: 14 }} uiBackground={{ color: PANEL }}>
-            <Txt v="● REC" size={26} w={100} h={40} color={REC} />
-            <Txt v={clock} size={26} w={76} h={40} />
+          <UiEntity uiTransform={{ margin: { left: 28, right: 28 } }}>
+            <UiEntity uiTransform={{ width: 196, height: 46, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: EDGE, borderRadius: 14 }} uiBackground={{ color: PANEL }}>
+              <Txt v="● REC" size={26} w={100} h={40} color={REC} />
+              <Txt v={clock} size={26} w={76} h={40} />
+            </UiEntity>
           </UiEntity>
         ) : null}
-        {P.on ? <Pill v={'$ ' + P.score} /> : P.best ? <Pill v={(en ? 'best' : 'récord') + ' $' + P.best} /> : null}
-        <Btn v="<b>?</b>" w={56} h={56} size={34} bg={AMBER} radius={28} onPress={() => (UI.guide = true)} />
-        {/* the music on or off (playtest feedback); the language lives on the lot and in the guide only */}
-        <UiEntity uiTransform={{ width: 56, height: 56, margin: { left: 4, right: 4 }, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: EDGE, borderRadius: 28 }} uiBackground={{ color: AMBER }} onMouseDown={() => (UI.music = !UI.music)}>
-          {img(UI.music ? 'btn-music.png' : 'btn-music-off.png', 40)}
+        {P.on || P.best ? (
+          <UiEntity uiTransform={{ margin: { left: 28, right: 28 } }}>
+            {P.on ? <Pill v={'$ ' + P.score} /> : <Pill v={(en ? 'best' : 'récord') + ' $' + P.best} />}
+          </UiEntity>
+        ) : null}
+        <UiEntity uiTransform={{ margin: { left: 28, right: 28 } }}>
+          <Btn v="<b>?</b>" w={56} h={56} size={34} bg={AMBER} radius={28} onPress={() => (UI.guide = true)} />
         </UiEntity>
-        <Btn v={en ? 'EXIT' : 'SALIR'} w={104} h={56} size={22} bg={AMBER} radius={28} onPress={() => (UI.wantExit = true)} />
+        {/* the music on or off (playtest feedback); the language lives on the lot and in the guide only */}
+        <UiEntity uiTransform={{ margin: { left: 28, right: 28 } }}>
+          <UiEntity uiTransform={{ width: 56, height: 56, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: EDGE, borderRadius: 28 }} uiBackground={{ color: AMBER }} onMouseDown={() => (UI.music = !UI.music)}>
+            {img(UI.music ? 'btn-music.png' : 'btn-music-off.png', 40)}
+          </UiEntity>
+        </UiEntity>
+        <UiEntity uiTransform={{ margin: { left: 28, right: 28 } }}>
+          <Btn v={en ? 'EXIT' : 'SALIR'} w={104} h={56} size={22} bg={AMBER} radius={28} onPress={() => (UI.wantExit = true)} />
+        </UiEntity>
       </UiEntity>
 
       {/* .tix: the tickets, most urgent on top, stacked at the right edge */}
@@ -407,16 +420,18 @@ function Shed(z: ZoneId) {
         </UiEntity>
       ) : null}
 
-      {/* .action: between takes, drawn over the ¡CORTEN! card's dimmer like Spawn's z-index */}
+      {/* .action: between takes, drawn over the ¡CORTEN! card's dimmer like Spawn's z-index. Bigger than the card
+          needs (playtest feedback: some players mistapped it) — there's ~90px of clear space below the card's
+          bottom edge (y≈505 of 720) down to this button's top, so it can grow without ever touching the card. */}
       {!P.on && !guideOpen && z === 'centre' ? (
-        <UiEntity uiTransform={{ positionType: 'absolute', position: { bottom: 14, left: 0 }, width: '100%', height: 78, justifyContent: 'center' }}>
+        <UiEntity uiTransform={{ positionType: 'absolute', position: { bottom: 14, left: 0 }, width: '100%', height: 112, justifyContent: 'center' }}>
           <UiEntity
-            uiTransform={{ width: 320, height: 78, justifyContent: 'center', alignItems: 'center', borderWidth: 5, borderColor: AMBER, borderRadius: 22 }}
+            uiTransform={{ width: 400, height: 112, justifyContent: 'center', alignItems: 'center', borderWidth: 5, borderColor: AMBER, borderRadius: 22 }}
             uiBackground={{ color: RED }}
             onMouseDown={() => (UI.wantStart = true)}
           >
-            {icon('clapper', 44)}
-            <Txt v={'<b>' + (en ? 'ACTION!' : '¡ACCIÓN!') + '</b>'} size={38} w={240} h={78} color={CREAM} />
+            {icon('clapper', 54)}
+            <Txt v={'<b>' + (en ? 'ACTION!' : '¡ACCIÓN!') + '</b>'} size={42} w={290} h={112} color={CREAM} />
           </UiEntity>
         </UiEntity>
       ) : null}
@@ -442,7 +457,7 @@ function Guide() {
   })
   return (
     <UiEntity uiTransform={{ positionType: 'absolute', width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
-                <UiEntity uiTransform={{ width: 1300, height: 690, flexDirection: 'column', borderWidth: 4, borderColor: ORANGE, borderRadius: 22 }} uiBackground={{ color: hex('#1a1020', 0.96) }}>
+                <UiEntity uiTransform={{ width: 1300, height: 706, flexDirection: 'column', borderWidth: 4, borderColor: ORANGE, borderRadius: 22 }} uiBackground={{ color: hex('#1a1020', 0.96) }}>
         {/* .gh */}
         <UiEntity uiTransform={{ width: 1292, height: 76, alignItems: 'center', padding: { left: 26, right: 14 } }}>
           <Txt v={'<b>' + G.title + '</b>'} size={30} w={1052} h={60} align="middle-left" />
@@ -469,17 +484,17 @@ function Guide() {
           </UiEntity>
         </UiEntity>
         <UiEntity uiTransform={{ width: 1292, height: 3 }} uiBackground={{ color: EDGE }} />
-        {/* .gf */}
-        <UiEntity uiTransform={{ width: 1292, height: 86, alignItems: 'center', justifyContent: 'flex-end', padding: { left: 26, right: 14 } }}>
+        {/* .gf: playtest feedback — this close button was hard to tap, made it as big as the card allows */}
+        <UiEntity uiTransform={{ width: 1292, height: 102, alignItems: 'center', justifyContent: 'flex-end', padding: { left: 26, right: 14 } }}>
           <Btn
             v={'<b>' + G.close + '</b>'}
-            w={250}
-            h={64}
-            size={26}
+            w={320}
+            h={94}
+            size={34}
             bg={ORANGE}
             fg={hex('#1a1020')}
             edge={ORANGE}
-            radius={14}
+            radius={18}
             onPress={() => {
               UI.guide = false
               UI.guideSeen = true
