@@ -16,10 +16,12 @@ export const UI = {
   hintAt: 0,
   guide: null as boolean | null, // null: never opened or closed yet, so it opens by itself on the first visit
   guideSeen: false,
+  menu: false, // the hamburger button's own small modal: music, how to play, exit, back
   lang: 'es' as 'es' | 'en',
   nearDoor: false, // standing at the lot's green door
   music: true, // the HUD's music button
   guided: false, // the first-order arrows have done their job: never again this session
+  playedOnce: false, // the first take has started: ¡ACCIÓN! hides for good, ¡CORTEN!'s own button restarts from here on
   mobile: false, // set once the platform is known (index.ts)
   entering: false, // walking in through the green door: the HUD draws the curtain
   // HUD buttons set these; game.ts consumes them on the next frame

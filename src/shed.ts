@@ -20,7 +20,7 @@ import {
 } from '@dcl/sdk/ecs'
 import { Color4, Quaternion, Vector3 } from '@dcl/sdk/math'
 import { loop, stopLoop } from './audio'
-import { DOOR, SND, TEX } from './config'
+import { DOOR, ICON, SND, TEX } from './config'
 import { anchor, c3, c4, lball, lbox, lcyl, lcylX, Mat, rl, roomRoot, sp, yaw } from './gfx'
 import { stationItem, stationProg } from './net'
 import { PropSlot, setVisible, slotAt } from './props'
@@ -156,20 +156,7 @@ function bench(a: Entity, top = 0.9) {
   const cans = ['oklch(0.5 0.15 30)', 'oklch(0.55 0.05 240)', 'oklch(0.6 0.12 90)']
   cans.forEach((c, i) => lcyl(-0.4 + i * 0.35, 0.22, 0.05, 0.06, 0.14, { color: c }, o))
 }
-const TINT: Record<string, string> = {
-  knife: 'oklch(0.75 0.03 240)',
-  machete: 'oklch(0.6 0.1 150)',
-  saw: 'oklch(0.62 0.19 42)',
-  torch: 'oklch(0.8 0.16 92)',
-  walkie: 'oklch(0.45 0.05 260)',
-  glove: 'oklch(0.5 0.1 50)',
-  chain: 'oklch(0.5 0.01 250)',
-  bulb: 'oklch(0.9 0.1 90)',
-  battery: 'oklch(0.55 0.2 28)',
-  antenna: 'oklch(0.35 0.02 260)',
-  blades: 'oklch(0.8 0.02 240)'
-}
-function crate(a: Entity, gives: string) {
+function crate(a: Entity, gives: string, bare: boolean) {
   const o = { parent: a }
   const h = 0.86
   lbox(-W, 0, -D, W, h, -D + 0.03, { color: WOOD, tex: TEX.wood }, o)
@@ -178,7 +165,11 @@ function crate(a: Entity, gives: string) {
   lbox(W - 0.03, 0, -D, W, h, D, { color: WOOD, tex: TEX.wood }, o)
   for (const x of [-W, W - 0.05]) lbox(x - 0.005, 0, -D - 0.01, x + 0.055, h, -D + 0.04, { color: DARK }, o)
   lbox(-W + 0.03, 0.6, -D + 0.03, W - 0.03, 0.62, D - 0.03, { color: WOOD2 }, o) // false floor, stuff sits high
-  lbox(-0.3, 0.32, -D - 0.012, 0.3, 0.46, -D - 0.002, { color: TINT[gives] ?? 'oklch(0.7 0.12 75)' }, o) // stencil band
+  // plaque: a square icon of what's inside (playtest feedback: the plain colour band wasn't distinct enough,
+  // and the prop models themselves are too plain to read at a glance). Racks give the unworked "bare" look,
+  // bins the plain part icon (same art already used in the HUD and tickets).
+  lbox(-0.285, 0.105, -D - 0.004, 0.285, 0.675, -D - 0.002, { color: 'oklch(0.95 0.02 90)' }, o) // plaque backing, recessed
+  lbox(-0.255, 0.135, -D - 0.012, 0.255, 0.645, -D - 0.004, { color: 'white', tex: ICON(gives + (bare ? 'bare' : '')), alpha: true }, o) // icon, frontmost so the backing can't hide it
 }
 function grinder(a: Entity) {
   bench(a)
@@ -234,7 +225,7 @@ export function buildStations() {
     const col = lbox(-0.59, 0, -0.4, 0.59, 0.9, 0.4, null, { parent: a })
     MeshCollider.setBox(col, ColliderLayer.CL_PHYSICS)
     const gives = GIVES(st.id)
-    if (st.kind === 'supply') crate(a, gives as string)
+    if (st.kind === 'supply') crate(a, gives as string, st.id.startsWith('rack-'))
     else if (st.kind === 'grinder') grinder(a)
     else if (st.kind === 'bucket') bucket(a)
     else if (st.kind === 'pump') pump(a)

@@ -308,6 +308,8 @@ function frame(dt: number) {
   const P = shift()
   // only for the very first order: once a delivery has been seen, the arrows never come back (playtest feedback)
   if (P.served > 0) UI.guided = true
+  // the ¡ACCIÓN! button only fronts the very first take; every take after that restarts from the ¡CORTEN! card
+  if (P.on) UI.playedOnce = true
   const step = P.on && !UI.guided ? nextStep(P.orders, h, nameOf) : null
   setGuide(step?.id ?? null, step ? (UI.lang === 'en' ? step.en : step.es) : '')
 
@@ -346,7 +348,9 @@ export function initGame() {
   // the lot at night, the shed's hum
   loop('crickets', SND('night-crickets-distant-wind-eerie-ambience-loop'), { volume: 0.35, global: true })
   loop('balloon', SND('film-set-balloon-light-electric-hum-loop'), { at: { x: 0, y: 6, z: 10 }, volume: 0.5 })
-  // @sebadl: no jumping in The Set
-  InputModifier.createOrReplace(engine.PlayerEntity, { mode: InputModifier.Mode.Standard({ disableJump: true }) })
+  // @sebadl: no jumping or emoting in The Set. disableEmote only takes effect on the DCL 2.0 desktop client —
+  // the web/mobile explorer ignores InputModifier entirely, so this is a no-op there (no scene-side way to
+  // block it or hide the emote wheel button on those clients)
+  InputModifier.createOrReplace(engine.PlayerEntity, { mode: InputModifier.Mode.Standard({ disableJump: true, disableEmote: true }) })
   engine.addSystem(frame)
 }
