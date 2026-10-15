@@ -66,7 +66,7 @@ function update(dt: number) {
     VirtualCamera.getMutable(cam).fov = fov
   }
   const inside = insideShed(fx, fz)
-  const gx = inside ? 0 : fx
+  const gx = inside ? 2 : fx
   const gz = inside ? (mobile ? GZ_MOBILE : GZ_DESKTOP) : fz // aimed a little in front of the middle, so the front row clears the bottom HUD
   const k = 1 - Math.exp(-RATE * dt)
   px = px === null ? gx : px + (gx - px) * k

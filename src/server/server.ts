@@ -154,7 +154,7 @@ function use(address: string, id: string) {
         return nope(address, h.k !== 'saw' ? 'el surtidor es solo para la motosierra' : 'ya tiene nafta', h.k !== 'saw' ? 'the pump is only for the chainsaw' : "it's already fuelled")
       }
       if (sharpenable(h)) return
-      return nope(address, h.s ? 'ya está afilado' : 'la amoladora es para cuchillos, machetes, cuchillas y el guante', h.s ? "it's already sharp" : 'the grinder is for knives, machetes, blades and the glove')
+      return nope(address, h.s ? 'ya está afilado' : 'la amoladora es para cuchillos, machetes y cuchillas', h.s ? "it's already sharp" : 'the grinder is for knives, machetes and blades')
     }
     case 'counter': {
       if (!h && it) {

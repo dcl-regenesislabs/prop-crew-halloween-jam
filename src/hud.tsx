@@ -32,6 +32,10 @@ const PUB = hex('#7fd28f')
 const PRV = hex('#ff7a6b')
 const GREEN = hex('#2f8a4a')
 const BLOOD = hex('#b3121b')
+// matches the native client's own round icon buttons (profile/terminal/screenshot/reload, top-left)
+const NATIVE_BG = hex('#000000', 0.55)
+const NATIVE_EDGE = hex('#ffffff', 0.35)
+const WHITE = hex('#ffffff')
 
 const EN = () => UI.lang === 'en'
 function setLang(l: 'es' | 'en') {
@@ -92,41 +96,41 @@ function tip(): { k: string; n: string; d: string } | null {
   switch (st.kind) {
     case 'grinder':
       return {
-        k: 'grinder',
+        k: '',
         n: en ? 'Grinder' : 'Amoladora',
         d: h?.s
           ? en
             ? 'already sharp'
             : 'ya está afilado'
           : en
-            ? 'bring a knife, machete or blades and hold' + (mobile ? '' : ' E')
-            : 'traé un cuchillo, machete o cuchillas y mantené' + (mobile ? '' : ' E')
+            ? (mobile ? 'hold' : 'hold E') + ' to sharpen'
+            : (mobile ? 'mantené' : 'mantené E') + ' para afilar'
       }
     case 'pump':
       return {
-        k: 'gas',
+        k: '',
         n: en ? 'Gas pump' : 'Surtidor de nafta',
         d: h?.k === 'saw' && h.g
           ? en
             ? 'already fuelled'
             : 'ya tiene nafta'
           : en
-            ? 'bring the chainsaw and hold' + (mobile ? '' : ' E')
-            : 'traé la motosierra y mantené' + (mobile ? '' : ' E')
+            ? (mobile ? 'hold' : 'hold E') + ' to fuel up'
+            : (mobile ? 'mantené' : 'mantené E') + ' para cargar nafta'
       }
     case 'trash':
-      return { k: 'tacho', n: en ? 'Trash' : 'Tacho', d: en ? (mobile ? 'holding something tosses it' : 'holding something, E tosses it') : mobile ? 'con algo en la mano, lo tira' : 'con algo en la mano, E lo tira' }
+      return { k: '', n: en ? 'Trash' : 'Tacho', d: en ? (mobile ? 'holding something tosses it' : 'holding something, E tosses it') : mobile ? 'con algo en la mano, lo tira' : 'con algo en la mano, E lo tira' }
     case 'bucket':
       return {
-        k: 'paint',
+        k: '',
         n: en ? 'Fake blood bucket' : 'Balde de sangre falsa',
         d: h?.b
           ? en
             ? 'already bloody'
             : 'ya está ensangrentado'
           : en
-            ? 'bring a sharpened knife or machete' + (mobile ? '' : ' and E')
-            : 'traé un cuchillo o machete afilado' + (mobile ? '' : ' y E')
+            ? (mobile ? '' : 'E ') + 'dip in fake blood'
+            : (mobile ? '' : 'E ') + 'mojar en sangre falsa'
       }
   }
   return null
@@ -203,27 +207,24 @@ function Btn(p: { v: string; w: number; h: number; size: number; bg: Color4; fg?
     </UiEntity>
   )
 }
-const img = (file: string, size: number, key?: string) => (
-  <UiEntity key={key} uiTransform={{ width: size, height: size, margin: 2, flexShrink: 0 }} uiBackground={{ texture: { src: 'assets/Images/' + file }, textureMode: 'stretch' }} />
+const img = (file: string, size: number, key?: string, color?: Color4) => (
+  <UiEntity key={key} uiTransform={{ width: size, height: size, margin: 2, flexShrink: 0 }} uiBackground={{ texture: { src: 'assets/Images/' + file }, textureMode: 'stretch', color }} />
 )
 const icon = (name: string, size: number, key?: string) => img(name + '-ico.png', size, key)
-// .lg / .lbl2: ES | EN, the one in use in amber
-function LangToggle(small = false) {
-  const h = small ? 40 : 48
-  const w = small ? 54 : 70
-  return (
-    <UiEntity uiTransform={{ height: h + 16, padding: 5, margin: { left: 5 }, alignItems: 'center', borderWidth: 3, borderColor: EDGE, borderRadius: 14 }} uiBackground={{ color: PANEL }}>
-      <Btn v="ES" w={w} h={h} size={small ? 19 : 22} bg={EN() ? INK : AMBER} fg={EN() ? TEXT : INK} onPress={() => setLang('es')} />
-      <Btn v="EN" w={w} h={h} size={small ? 19 : 22} bg={EN() ? AMBER : INK} fg={EN() ? INK : TEXT} onPress={() => setLang('en')} />
-    </UiEntity>
-  )
-}
 
 // The HUD is drawn in layers, back to front: 'full' (dimmers over the whole screen), 'centre' (small centred pieces,
-// device safe area), 'area' (edge pieces, interactable area), then the guide's dimmer and the guide itself.
-type ZoneId = 'full' | 'centre' | 'area' | 'guide-dim' | 'guide'
+// device safe area), 'area' (edge pieces, interactable area). The pause button (+ REC/$ when relevant), the guide
+// and the hamburger menu all live here at the Hud level instead — reachable from the lot or the shed alike,
+// instead of disappearing outside a take.
+type ZoneId = 'full' | 'centre' | 'area'
 const Zone = (z: ZoneId) => (UI.inside ? Shed(z) : Lot(z))
 function Hud() {
+  const P = shift()
+  const en = EN()
+  const left = P.on ? Math.max(0, Math.ceil((P.endsAt - now()) / 1000)) : 0
+  const clock = Math.floor(left / 60) + ':' + ('0' + (left % 60)).slice(-2)
+  // the guide auto-opens on the first visit to the shed only; "how to play" in the menu can still open it anywhere
+  const guideOpen = UI.guide ?? (UI.inside && !UI.guideSeen)
   return (
     <UiEntity uiTransform={{ width: '100%', height: '100%', positionType: 'absolute' }}>
       {Zone('full')}
@@ -232,8 +233,43 @@ function Hud() {
         {Waking()}
       </ScreenInsetArea>
       <InteractableArea>{Zone('area')}</InteractableArea>
-      {Zone('guide-dim')}
-      <InteractableArea>{Zone('guide')}</InteractableArea>
+
+      {/* .money / .rec: the pause button is the one true entry point to music/guide/exit, so it (and the
+          take's own timer/score when there is one) stays up whether you're on the lot or in the shed. */}
+      <InteractableArea>
+        {P.on || P.best ? (
+          <UiEntity uiTransform={{ positionType: 'absolute', position: { top: 12, right: 448 }, height: 80, justifyContent: 'flex-end', alignItems: 'center' }}>
+            {P.on ? <Pill v={'$ ' + P.score} size={36} /> : P.best ? <Pill v={(en ? 'best' : 'récord') + ' $' + P.best} size={36} /> : null}
+          </UiEntity>
+        ) : null}
+        <UiEntity uiTransform={{ positionType: 'absolute', position: { top: 12, right: 0 }, width: 400, height: 80, justifyContent: 'flex-end', alignItems: 'center' }}>
+          {P.on ? (
+            <UiEntity uiTransform={{ width: 272, height: 72, margin: { right: 48 }, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: EDGE, borderRadius: 14 }} uiBackground={{ color: PANEL }}>
+              <Txt v="● REC" size={36} w={150} h={46} color={REC} />
+              <Txt v={clock} size={36} w={110} h={46} />
+            </UiEntity>
+          ) : null}
+          {/* pause: opens the small menu modal (music, how to play, exit, back) */}
+          <UiEntity uiTransform={{ width: 80, height: 80, justifyContent: 'center', alignItems: 'center', borderRadius: 40 }} uiBackground={{ color: NATIVE_BG }} onMouseDown={() => (UI.menu = true)}>
+            {icon('pause', 44)}
+          </UiEntity>
+        </UiEntity>
+      </InteractableArea>
+
+      {guideOpen ? (
+        <UiEntity
+          uiTransform={{ positionType: 'absolute', width: '100%', height: '100%' }}
+          uiBackground={{ color: hex('#000000', 0.7) }}
+          onMouseDown={() => {
+            UI.guide = false
+            UI.guideSeen = true
+          }}
+        />
+      ) : null}
+      <ScreenInsetArea>{guideOpen ? Guide() : null}</ScreenInsetArea>
+
+      {UI.menu ? <UiEntity uiTransform={{ positionType: 'absolute', width: '100%', height: '100%' }} uiBackground={{ color: hex('#000000', 0.7) }} onMouseDown={() => (UI.menu = false)} /> : null}
+      <ScreenInsetArea>{UI.menu ? Menu() : null}</ScreenInsetArea>
     </UiEntity>
   )
 }
@@ -281,9 +317,6 @@ function Lot(z: ZoneId) {
         </UiEntity>
       ) : null}
 
-      {/* .lbl2: the language, top-right */}
-      {z === 'area' ? <UiEntity uiTransform={{ positionType: 'absolute', position: { top: 12, right: 0 }, height: 64 }}>{LangToggle()}</UiEntity> : null}
-
       {/* .going: the walk-in curtain */}
       {UI.entering && z === 'full' ? <UiEntity uiTransform={{ positionType: 'absolute', width: '100%', height: '100%' }} uiBackground={{ color: hex('#0e1420', 0.94) }} /> : null}
       {UI.entering && z === 'centre' ? (
@@ -303,17 +336,17 @@ function Ticket(o: { dish: DishId; until: number; max: number }, key: string) {
   const col = pct > 0.5 ? hex('#3f9e5a') : pct > 0.25 ? hex('#d99a2b') : RED
   const steps: any[] = []
   STEPS[o.dish].forEach((k, i) => {
-    if (i) steps.push(<Txt key={'a' + i} v="<b>›</b>" size={20} w={12} h={30} color={INK} />)
-    steps.push(icon(k, 30, 's' + i))
+    if (i) steps.push(<Txt key={'a' + i} v="<b>›</b>" size={26} w={16} h={40} color={INK} />)
+    steps.push(icon(k, 60, 's' + i))
   })
   return (
-    <UiEntity key={key} uiTransform={{ width: 292, height: 92, margin: { bottom: 8 }, padding: 6, alignItems: 'center', borderWidth: 3, borderColor: EDGE, borderRadius: 14 }} uiBackground={{ color: PAPER }}>
-      {icon(o.dish, 72)}
-      <UiEntity uiTransform={{ width: 196, height: 78, margin: { left: 6 }, flexDirection: 'column', justifyContent: 'space-between' }}>
-        <Txt v={'<b>' + (EN() ? DISH_EN[o.dish] : S.dishes[o.dish].name) + '</b>'} size={16} w={196} h={22} color={INK} align="middle-left" />
-        <UiEntity uiTransform={{ width: 196, height: 34, alignItems: 'center' }}>{steps}</UiEntity>
-        <UiEntity uiTransform={{ width: 192, height: 12, borderRadius: 6 }} uiBackground={{ color: hex('#000000', 0.2) }}>
-          <UiEntity uiTransform={{ width: Math.max(2, Math.round(192 * pct)), height: 12, borderRadius: 6 }} uiBackground={{ color: col }} />
+    <UiEntity key={key} uiTransform={{ width: 390, height: 116, margin: { bottom: 16 }, padding: 8, alignItems: 'center', borderWidth: 3, borderColor: EDGE, borderRadius: 14 }} uiBackground={{ color: PAPER }}>
+      {icon(o.dish, 90)}
+      <UiEntity uiTransform={{ width: 245, height: 100, margin: { left: 10 }, flexDirection: 'column', justifyContent: 'space-between' }}>
+        <Txt v={'<b>' + (EN() ? DISH_EN[o.dish] : S.dishes[o.dish].name) + '</b>'} size={18} w={245} h={22} color={INK} align="middle-left" />
+        <UiEntity uiTransform={{ width: 245, height: 64, alignItems: 'center' }}>{steps}</UiEntity>
+        <UiEntity uiTransform={{ width: 241, height: 14, borderRadius: 7 }} uiBackground={{ color: hex('#000000', 0.2) }}>
+          <UiEntity uiTransform={{ width: Math.max(2, Math.round(241 * pct)), height: 14, borderRadius: 7 }} uiBackground={{ color: col }} />
         </UiEntity>
       </UiEntity>
     </UiEntity>
@@ -323,10 +356,7 @@ function Ticket(o: { dish: DishId; until: number; max: number }, key: string) {
 function Shed(z: ZoneId) {
   const P = shift()
   const en = EN()
-  const t = now()
   const guideOpen = UI.guide ?? !UI.guideSeen
-  const left = P.on ? Math.max(0, Math.ceil((P.endsAt - t) / 1000)) : 0
-  const clock = Math.floor(left / 60) + ':' + ('0' + (left % 60)).slice(-2)
   const orders = Object.values(P.orders).sort((a, b) => a.until - b.until)
   const hint = UI.hintAt && Date.now() - UI.hintAt < 1800 ? (en ? UI.hintEn || UI.hint : UI.hint) : ''
   const p = prompt()
@@ -334,97 +364,70 @@ function Shed(z: ZoneId) {
   const h = UI.held
   const heldIcon = h ? (h.k === 'saw' ? 'chainsaw' : h.k === 'torch' ? 'flashlight' : h.k) : ''
   const heldText = itemName(h)
-  const wrap = !P.on && P.last && t - P.endsAt < 12000 ? P.last : null
+  // @debug: forces the ¡CORTEN! card open on entry (before any real P.last) to iterate on its layout without
+  // playing a round. Flip to false (or delete) once you're done — tell me and I'll take it out.
+  const DEBUG_WRAP = true
+  // stays up until "VOLVER A JUGAR" is tapped — no more auto-hiding after a few seconds
+  const wrap = !P.on ? (P.last ?? (DEBUG_WRAP ? { score: 180, served: 7, missed: 2, stars: 2 } : null)) : null
   return (
     <UiEntity uiTransform={{ width: '100%', height: '100%', positionType: 'absolute' }}>
-      {/* .top: REC clock and the take (or the record between takes), the guide, the music, the way out. Spaced an
-          extra 56px apart (the "?" button's own size) per playtest feedback: too easy to mistap a neighbour. */}
-      <UiEntity uiTransform={{ display: z === 'centre' ? 'flex' : 'none', positionType: 'absolute', position: { top: 12, left: 0 }, width: '100%', height: 60, justifyContent: 'center', alignItems: 'center' }}>
-        {P.on ? (
-          <UiEntity uiTransform={{ margin: { left: 28, right: 28 } }}>
-            <UiEntity uiTransform={{ width: 196, height: 46, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: EDGE, borderRadius: 14 }} uiBackground={{ color: PANEL }}>
-              <Txt v="● REC" size={26} w={100} h={40} color={REC} />
-              <Txt v={clock} size={26} w={76} h={40} />
-            </UiEntity>
-          </UiEntity>
-        ) : null}
-        {P.on || P.best ? (
-          <UiEntity uiTransform={{ margin: { left: 28, right: 28 } }}>
-            {P.on ? <Pill v={'$ ' + P.score} /> : <Pill v={(en ? 'best' : 'récord') + ' $' + P.best} />}
-          </UiEntity>
-        ) : null}
-        <UiEntity uiTransform={{ margin: { left: 28, right: 28 } }}>
-          <Btn v="<b>?</b>" w={56} h={56} size={34} bg={AMBER} radius={28} onPress={() => (UI.guide = true)} />
-        </UiEntity>
-        {/* the music on or off (playtest feedback); the language lives on the lot and in the guide only */}
-        <UiEntity uiTransform={{ margin: { left: 28, right: 28 } }}>
-          <UiEntity uiTransform={{ width: 56, height: 56, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: EDGE, borderRadius: 28 }} uiBackground={{ color: AMBER }} onMouseDown={() => (UI.music = !UI.music)}>
-            {img(UI.music ? 'btn-music.png' : 'btn-music-off.png', 40)}
-          </UiEntity>
-        </UiEntity>
-        <UiEntity uiTransform={{ margin: { left: 28, right: 28 } }}>
-          <Btn v={en ? 'EXIT' : 'SALIR'} w={104} h={56} size={22} bg={AMBER} radius={28} onPress={() => (UI.wantExit = true)} />
-        </UiEntity>
-      </UiEntity>
 
-      {/* .tix: the tickets, most urgent on top, stacked at the right edge */}
-      <UiEntity uiTransform={{ display: z === 'area' ? 'flex' : 'none', positionType: 'absolute', position: { top: 12, right: 0 }, width: 300, height: 210, flexDirection: 'column', alignItems: 'flex-end' }}>
+      {/* .tix: the tickets, most urgent on top, stacked at the right edge below .rec. Grown to double the
+          recipe-step icons (playtest feedback: too small to read) — card compacted elsewhere (dish icon, name,
+          bar) to make room for .rec above while still clearing .prompt/.held/.tip's top edge (~y=308). */}
+      <UiEntity uiTransform={{ display: z === 'area' ? 'flex' : 'none', positionType: 'absolute', position: { top: 140, right: 0 }, width: 400, height: 248, flexDirection: 'column', alignItems: 'flex-end' }}>
         {orders.map((o, i) => Ticket(o, 't' + i))}
       </UiEntity>
 
       {/* .prompt: what the main button does right now, flush to the right edge, parked above the native touch button's
           footprint — the client always draws that button over scene UI there, so this sits clear of it, not on top */}
-      {p && z === 'area' ? (
-        <UiEntity uiTransform={{ positionType: 'absolute', position: { bottom: 228, right: 0 }, width: wide(p, 26) + 36, height: 46, justifyContent: 'center', alignItems: 'center', borderRadius: 12 }} uiBackground={{ color: AMBER }}>
-          <Txt v={p} size={26} w={wide(p, 26) + 30} h={40} color={INK} />
-        </UiEntity>
-      ) : null}
-
-      {/* .held: what is in your hands, stacked right above .prompt */}
-      {h && z === 'area' ? (
-        <UiEntity uiTransform={{ positionType: 'absolute', position: { bottom: 284, right: 0 }, width: wide(heldText, 22) + 80, height: 48, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: EDGE, borderRadius: 14 }} uiBackground={{ color: PANEL }}>
-          {icon(heldIcon, 34)}
-          <Txt v={heldText} size={22} w={wide(heldText, 22) + 12} h={40} />
-        </UiEntity>
-      ) : null}
-
-      {/* .tip: the looked-at station's own description when there is nothing to do there yet, stacked above .held */}
-      {tt && z === 'area' ? (
-        <UiEntity uiTransform={{ positionType: 'absolute', position: { bottom: 342, right: 0 }, width: Math.max(wide(tt.d, 20), wide(tt.n, 22)) + 90, height: 70, padding: { left: 12, right: 12 }, alignItems: 'center', borderWidth: 3, borderColor: EDGE, borderRadius: 14 }} uiBackground={{ color: PANEL }}>
-          {icon(tt.k, 46)}
-          <UiEntity uiTransform={{ flexDirection: 'column', margin: { left: 10 } }}>
-            <Txt v={'<b>' + tt.n + '</b>'} size={22} w={Math.max(wide(tt.d, 20), wide(tt.n, 22))} h={28} color={AMBER} align="middle-left" />
-            <Txt v={tt.d} size={20} w={Math.max(wide(tt.d, 20), wide(tt.n, 22))} h={26} align="middle-left" />
-          </UiEntity>
-        </UiEntity>
-      ) : null}
-
-      {/* .hand: the transient hint toast only; the station tip and held-item cards moved to .tip / .held, over the right margin */}
-      <UiEntity uiTransform={{ display: z === 'centre' ? 'flex' : 'none', positionType: 'absolute', position: { bottom: P.on || guideOpen ? 14 : 100, left: 0 }, width: '100%', height: 40, justifyContent: 'flex-end', alignItems: 'center' }}>
-        {hint ? <Txt v={hint} size={24} w={900} h={34} color={SALMON} /> : null}
-      </UiEntity>
-
-      {/* .wrap: ¡CORTEN! for a few seconds after the whistle */}
-      {wrap && !guideOpen && z === 'full' ? <UiEntity uiTransform={{ positionType: 'absolute', width: '100%', height: '100%' }} uiBackground={{ color: hex('#000000', 0.5) }} /> : null}
-      {wrap && !guideOpen && z === 'centre' ? (
-        <UiEntity uiTransform={{ positionType: 'absolute', width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
-          <UiEntity uiTransform={{ width: 760, height: 290, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: ORANGE, borderRadius: 20 }} uiBackground={{ color: hex('#1a1020', 0.94) }}>
-            <UiEntity uiTransform={{ width: 740, height: 70, justifyContent: 'center', alignItems: 'center' }}>
-              {icon('clapper', 50)}
-              <Txt v={'<b>' + (en ? 'CUT!' : '¡CORTEN!') + '</b>'} size={54} w={500} h={70} />
+      {/* .hint: one shared box for the server's "that didn't work" toast, the main-button prompt, the looked-at
+          station's tip, or what's in your hands — only one ever shows, always at this same spot. Priority:
+          server toast (buzz-short feedback, 1.8s) > prompt > station tip > held item. Same 36pt-turned-28pt font
+          as REC/timer/money, parked 48px further from the native button's footprint than before. */}
+      {(hint || p || tt || h) && z === 'area' ? (
+        <UiEntity
+          uiTransform={{
+            positionType: 'absolute',
+            position: { bottom: 224, right: 0 },
+            width: hint ? wide(hint, 28) + 36 : p ? wide(p, 28) + 36 : tt ? Math.max(wide(tt.d, 28), wide(tt.n, 28)) + (tt.k ? 90 : 24) : wide(heldText, 28) + 80,
+            height: 88,
+            padding: { left: 12, right: 12, top: 8, bottom: 8 },
+            justifyContent: 'center',
+            alignItems: 'center',
+            borderWidth: hint ? 3 : p ? 0 : 3,
+            borderColor: hint ? SALMON : EDGE,
+            borderRadius: p ? 12 : 14
+          }}
+          uiBackground={{ color: p ? AMBER : PANEL }}
+        >
+          {hint ? (
+            <Txt v={hint} size={28} w={wide(hint, 28) + 30} h={42} color={SALMON} />
+          ) : p ? (
+            <Txt v={p} size={28} w={wide(p, 28) + 30} h={42} color={INK} />
+          ) : tt ? (
+            <UiEntity uiTransform={{ flexDirection: 'row', alignItems: 'center' }}>
+              {tt.k ? icon(tt.k, 46) : null}
+              <UiEntity uiTransform={{ flexDirection: 'column', margin: { left: tt.k ? 10 : 0 } }}>
+                <Txt v={'<b>' + tt.n + '</b>'} size={28} w={Math.max(wide(tt.d, 28), wide(tt.n, 28))} h={36} color={AMBER} align="middle-left" />
+                <Txt v={tt.d} size={28} w={Math.max(wide(tt.d, 28), wide(tt.n, 28))} h={36} align="middle-left" />
+              </UiEntity>
             </UiEntity>
-            <Txt v={'★ '.repeat(wrap.stars) + '☆ '.repeat(3 - wrap.stars)} size={56} w={740} h={74} color={AMBER} />
-            <Txt v={'$ ' + wrap.score + ' · ' + wrap.served + (en ? ' delivered · ' : ' entregados · ') + wrap.missed + (en ? ' walked out' : ' se fueron')} size={32} w={740} h={48} />
-            <Txt v={en ? 'tap ACTION! for another take' : 'tocá ¡ACCIÓN! para otra toma'} size={22} w={740} h={40} color={hex('#f6e3c4', 0.8)} />
-          </UiEntity>
+          ) : (
+            <UiEntity uiTransform={{ flexDirection: 'row', alignItems: 'center' }}>
+              {icon(heldIcon, 34)}
+              <Txt v={heldText} size={28} w={wide(heldText, 28) + 12} h={42} />
+            </UiEntity>
+          )}
         </UiEntity>
       ) : null}
 
-      {/* .action: between takes, drawn over the ¡CORTEN! card's dimmer like Spawn's z-index. Bigger than the card
-          needs (playtest feedback: some players mistapped it) — there's ~90px of clear space below the card's
-          bottom edge (y≈505 of 720) down to this button's top, so it can grow without ever touching the card. */}
-      {!P.on && !guideOpen && z === 'centre' ? (
-        <UiEntity uiTransform={{ positionType: 'absolute', position: { bottom: 14, left: 0 }, width: '100%', height: 112, justifyContent: 'center' }}>
+      {/* .action: the FIRST take only — after that, ¡CORTEN!'s own "VOLVER A JUGAR" restarts the next ones, so
+          this never has to compete with that card for screen space again. Centred now that the two can't coexist.
+          Drawn before .wrap (below it in z-order) and gated on !wrap too, so if both are ever true at once
+          (e.g. DEBUG_WRAP) ¡CORTEN! always wins instead of the two overlapping. */}
+      {!P.on && !guideOpen && !UI.playedOnce && !wrap && z === 'centre' ? (
+        <UiEntity uiTransform={{ positionType: 'absolute', width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
           <UiEntity
             uiTransform={{ width: 400, height: 112, justifyContent: 'center', alignItems: 'center', borderWidth: 5, borderColor: AMBER, borderRadius: 22 }}
             uiBackground={{ color: RED }}
@@ -436,17 +439,76 @@ function Shed(z: ZoneId) {
         </UiEntity>
       ) : null}
 
-      {guideOpen && z === 'guide-dim' ? (
-        <UiEntity
-          uiTransform={{ positionType: 'absolute', width: '100%', height: '100%' }}
-          uiBackground={{ color: hex('#000000', 0.7) }}
-          onMouseDown={() => {
-            UI.guide = false
-            UI.guideSeen = true
-          }}
-        />
+      {/* .wrap: ¡CORTEN! — stays up until "VOLVER A JUGAR" is tapped (no more auto-hiding after a few seconds),
+          so it needs its own restart button now that ¡ACCIÓN! only ever shows for the very first take. Drawn
+          after .action (above it in z-order), so it always covers the loose button if both were ever visible. */}
+      {wrap && !guideOpen && z === 'full' ? <UiEntity uiTransform={{ positionType: 'absolute', width: '100%', height: '100%' }} uiBackground={{ color: hex('#000000', 0.5) }} /> : null}
+      {wrap && !guideOpen && z === 'centre' ? (
+        <UiEntity uiTransform={{ positionType: 'absolute', width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
+          <UiEntity uiTransform={{ width: 760, height: 480 }}>
+            <UiEntity uiTransform={{ width: 760, height: 480, flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: { top: 70, bottom: 20 }, borderWidth: 4, borderColor: ORANGE, borderRadius: 20 }} uiBackground={{ color: hex('#1a1020', 0.94) }}>
+              <Txt v={'<b>' + (en ? 'CUT!' : '¡CORTEN!') + '</b>'} size={54} w={wide(en ? 'CUT!' : '¡CORTEN!', 54) + 10} h={70} />
+              <UiEntity uiTransform={{ margin: { top: 24 } }}>
+                <Txt v={'★ '.repeat(wrap.stars) + '☆ '.repeat(3 - wrap.stars)} size={56} w={740} h={74} color={AMBER} />
+              </UiEntity>
+              <UiEntity uiTransform={{ margin: { top: 12 } }}>
+                <Txt v={'$ ' + wrap.score + ' · ' + wrap.served + (en ? ' delivered · ' : ' entregados · ') + wrap.missed + (en ? ' walked out' : ' se fueron')} size={32} w={740} h={48} />
+              </UiEntity>
+              <UiEntity uiTransform={{ margin: { top: 28 } }}>
+                <Txt v={(en ? 'PLAY AGAIN' : 'VOLVER A JUGAR') + ':'} size={22} w={300} h={30} color={hex('#f6e3c4', 0.8)} />
+              </UiEntity>
+              {/* same wording as the loose first-take button, so the game speaks one language throughout */}
+              <UiEntity
+                uiTransform={{ width: 420, height: 80, margin: { top: 16 }, justifyContent: 'center', alignItems: 'center', borderWidth: 5, borderColor: AMBER, borderRadius: 22 }}
+                uiBackground={{ color: RED }}
+                onMouseDown={() => (UI.wantStart = true)}
+              >
+                <Txt v={'<b>' + (en ? 'ACTION!' : '¡ACCIÓN!') + '</b>'} size={30} w={290} h={80} color={CREAM} />
+              </UiEntity>
+            </UiEntity>
+            {/* the clapper as a badge straddling the top border — half in, half out, 200% bigger than before. A
+                sibling drawn after the card (not a child of it), so it paints over the card's own border instead
+                of the border cutting across it. */}
+            <UiEntity uiTransform={{ positionType: 'absolute', position: { top: -60, left: 320 } }}>{icon('clapper', 120)}</UiEntity>
+          </UiEntity>
+        </UiEntity>
       ) : null}
-      {guideOpen && z === 'guide' ? Guide() : null}
+
+    </UiEntity>
+  )
+}
+
+// --- the hamburger's menu modal: music, how to play (opens the guide), exit, back -----------------------------
+function Menu() {
+  const en = EN()
+  const items: { v: string; onPress: () => void }[] = [
+    { v: en ? (UI.music ? 'Music: ON' : 'Music: OFF') : UI.music ? 'Música: ON' : 'Música: OFF', onPress: () => (UI.music = !UI.music) },
+    { v: en ? 'LANGUAGE: ENGLISH' : 'LENGUAJE: ESPAÑOL', onPress: () => setLang(en ? 'es' : 'en') },
+    {
+      v: en ? 'How to play' : 'Cómo jugar',
+      onPress: () => {
+        UI.menu = false
+        UI.guide = true
+      }
+    },
+    { v: en ? 'EXIT' : 'SALIR', onPress: () => (UI.wantExit = true) },
+    { v: en ? 'BACK' : 'VOLVER', onPress: () => (UI.menu = false) }
+  ]
+  return (
+    <UiEntity uiTransform={{ positionType: 'absolute', width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
+      <UiEntity uiTransform={{ width: 440, flexDirection: 'column', alignItems: 'center', padding: 24, borderWidth: 4, borderColor: ORANGE, borderRadius: 22 }} uiBackground={{ color: hex('#1a1020', 0.96) }}>
+        <Txt v={'<b>' + (en ? 'Menu' : 'Menú') + '</b>'} size={30} w={392} h={44} />
+        {items.map((it, i) => (
+          <UiEntity
+            key={'m' + i}
+            uiTransform={{ width: 392, height: 80, margin: { top: 14 }, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: AMBER, borderRadius: 16 }}
+            uiBackground={{ color: AMBER }}
+            onMouseDown={it.onPress}
+          >
+            <Txt v={'<b>' + it.v + '</b>'} size={28} w={360} h={50} color={INK} />
+          </UiEntity>
+        ))}
+      </UiEntity>
     </UiEntity>
   )
 }
@@ -454,6 +516,7 @@ function Shed(z: ZoneId) {
 // --- the station guide (ui.js guide): opens on its own the first visit, ? brings it back ----------------------------
 function Guide() {
   const G = GUIDE[UI.lang]
+  const en = EN()
   const ex: any[] = []
   EXAMPLE.forEach((k, i) => {
     if (i) ex.push(<Txt key={'x' + i} v="<b>›</b>" size={34} w={30} h={64} color={AMBER} />)
@@ -467,10 +530,10 @@ function Guide() {
   return (
     <UiEntity uiTransform={{ positionType: 'absolute', width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
                 <UiEntity uiTransform={{ width: 1300, height: 706, flexDirection: 'column', borderWidth: 4, borderColor: ORANGE, borderRadius: 22 }} uiBackground={{ color: hex('#1a1020', 0.96) }}>
-        {/* .gh */}
+        {/* .gh: "how to play", opened from the hamburger menu now, not straight from the live HUD. Language
+            moved to the menu — the only place it lives now. */}
         <UiEntity uiTransform={{ width: 1292, height: 76, alignItems: 'center', padding: { left: 26, right: 14 } }}>
           <Txt v={'<b>' + G.title + '</b>'} size={30} w={1052} h={60} align="middle-left" />
-          {LangToggle()}
         </UiEntity>
         <UiEntity uiTransform={{ width: 1292, height: 3 }} uiBackground={{ color: EDGE }} />
         {/* .gb: one card per station, with its photo */}
